@@ -1,7 +1,7 @@
 [project]
 name = "anime-list-api"
 version = "1.0.0"
-description = "API REST modular optimizada para la gestión de catálogos de anime y consumo desde aplicaciones móviles."
+description = "Modular REST API optimized for managing anime catalogs."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

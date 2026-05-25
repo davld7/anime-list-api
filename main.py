@@ -1,48 +1,52 @@
 import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 
 from app.routers import animes
 from app.db.database import check_database_connection
 
-# Retrieve the standard Uvicorn error logger to output unified system logs
+
+# =========================
+# LOGGER
+# =========================
 logger = logging.getLogger("uvicorn.error")
 
 
+# =========================
+# LIFESPAN
+# =========================
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """
-    Manages the application lifecycle events, executing startup checks 
-    and resource cleanup procedures upon shutdown sequence.
-    """
-    logger.info("Initializing the API Server lifecycle...")
+    logger.info("Starting API lifecycle...")
 
     if check_database_connection():
-        logger.info("Successfully established active stream connection to MongoDB Atlas!")
+        logger.info("MongoDB connection successful.")
     else:
-        logger.critical(
-            "Critical Failure: Unable to establish an authenticated connection to the MongoDB Atlas cluster."
-        )
+        logger.critical("MongoDB connection FAILED.")
 
     yield
 
-    logger.info("Deactivating API Server and flushing connections...")
+    logger.info("Shutting down API...")
 
+
+# =========================
+# APP
+# =========================
 app = FastAPI(
     title="Anime List API",
-    description="A modular, high-performance REST API optimized for catalog management and mobile application consumption.",
+    description="REST API for anime catalog management.",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
-# Include core functional feature routers
 app.include_router(animes.router)
 
 
+# =========================
+# ROOT REDIRECT
+# =========================
 @app.get("/", include_in_schema=False)
-def root_redirect() -> RedirectResponse:
-    """
-    Redirects incoming root traffic automatically toward the interactive OpenAPI Swagger UI documentation endpoint.
-    """
-    return RedirectResponse(url="/docs")
+def root():
+    return RedirectResponse("/docs")
