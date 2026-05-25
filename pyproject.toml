@@ -1,0 +1,12 @@
+[project]
+name = "anime-list-api"
+version = "1.0.0"
+description = "API REST modular optimizada para la gestión de catálogos de anime y consumo desde aplicaciones móviles."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.136.3",
+    "pydantic-settings>=2.14.1",
+    "pymongo>=4.17.0",
+    "uvicorn>=0.48.0",
+]

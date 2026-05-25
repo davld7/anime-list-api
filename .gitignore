@@ -1,0 +1,36 @@
+# Python bytecode cache and compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local virtual environments
+.venv/
+venv/
+ENV/
+
+# Environment variables and sensitive secrets
+.env
+.env.*
+!.env.example
+
+# Distribution, packaging, and build artifacts
+build/
+dist/
+wheels/
+*.egg-info/
+
+# IDE and Editor specific files (VS Code, PyCharm, etc.)
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Operating System garbage files
+.DS_Store
+Thumbs.db
