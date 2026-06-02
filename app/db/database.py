@@ -1,38 +1,48 @@
+import logging
+
 from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.server_api import ServerApi
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from app.core.config import settings
 
-
-# =========================
-# SETTINGS
-# =========================
-class Settings(BaseSettings):
-    MONGO_URI: str
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
-
-
-settings = Settings()  # type: ignore[call-arg]
+logger = logging.getLogger("anime-api.database")
 
 
 # =========================
 # DATABASE CLIENT
 # =========================
-client = MongoClient(
-    settings.MONGO_URI,
-    server_api=ServerApi("1")
-)
+try:
+    client = MongoClient(
+        settings.MONGO_URI,
+        server_api=ServerApi("1")
+    )
+    logger.info("MongoDB client initialized successfully")
+except Exception as e:
+    logger.critical(f"Failed to initialize MongoDB client: {e}")
+    raise
 
 
-db: Database = client.get_database("fastapi")
+db: Database = client.get_database(settings.DATABASE_NAME)
 animes_collection: Collection = db.get_collection("animes")
+
+logger.info(f"Connected to database: {settings.DATABASE_NAME}")
+
+
+# =========================
+# INDEX CREATION
+# =========================
+def create_indexes():
+    try:
+        animes_collection.create_index([("name", 1)], unique=True)
+        logger.info("Created index on 'name' field")
+    except Exception as e:
+        logger.warning(f"Index creation warning (may already exist): {e}")
+
+
+# Create indexes on module load
+create_indexes()
 
 
 # =========================
@@ -42,5 +52,6 @@ def check_database_connection() -> bool:
     try:
         client.admin.command("ping")
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"Database connection check failed: {e}")
         return False
