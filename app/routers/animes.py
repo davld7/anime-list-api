@@ -1,30 +1,29 @@
 import math
 
+from bson import ObjectId
+from bson.errors import InvalidId
 from fastapi import (
     APIRouter,
+    Body,
+    Depends,
     HTTPException,
     Path,
     Query,
-    Depends,
-    Body,
     status,
 )
-from bson import ObjectId
-from bson.errors import InvalidId
 
 from app.repositories.anime_repository import (
+    PAGE_SIZE,
+    count_animes,
+    create_anime,
+    delete_anime,
     get_all_animes,
     get_anime_by_id,
     get_anime_by_name,
     get_paginated_animes,
-    count_animes,
-    create_anime,
     update_anime,
-    delete_anime,
-    PAGE_SIZE,
 )
 from app.schemas.anime import Anime, AnimeBase, TotalAnimesPages
-
 
 router = APIRouter(
     prefix="/animes",

@@ -9,7 +9,16 @@ dependencies = [
     "pydantic-settings>=2.14.1",
     "pymongo>=4.17.0",
     "uvicorn>=0.48.0",
+    "ruff>=0.15.16",
 ]
+
+[tool.ruff]
+fix = true
+line-length = 100
+extend-exclude = [".venv", "venv", "__pycache__", "build", "dist"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I"]
 
 [project.optional-dependencies]
 dev = [

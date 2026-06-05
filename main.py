@@ -2,11 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.routers import animes
 from app.db.database import check_database_connection
-
+from app.routers import animes
 
 # =========================
 # LOGGER CONFIGURATION
@@ -63,14 +62,14 @@ def root():
 @app.get("/health")
 def health_check():
     db_connected = check_database_connection()
-    
+
     if not db_connected:
         logger.error("Health check failed: Database not connected")
         raise HTTPException(
             status_code=503,
             detail="Service unavailable - database connection failed"
         )
-    
+
     logger.debug("Health check passed")
     return JSONResponse(
         status_code=200,

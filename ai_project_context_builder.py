@@ -1,6 +1,6 @@
 import fnmatch
 from pathlib import Path
-from typing import Set, Optional, Dict
+from typing import Dict, Optional, Set
 
 
 # =========================
