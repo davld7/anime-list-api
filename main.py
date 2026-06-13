@@ -4,40 +4,43 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.db.database import check_database_connection
+from app.db.database import init_database, check_database_connection
 from app.routers import animes
 
 # =========================
 # LOGGER CONFIGURATION
 # =========================
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S"
 )
-logger = logging.getLogger("anime-api")
 
+logger = logging.getLogger("anime-api")
 
 # =========================
 # LIFESPAN
 # =========================
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting API lifecycle...")
 
-    if check_database_connection():
-        logger.info("MongoDB connection successful.")
-    else:
-        logger.critical("MongoDB connection FAILED.")
+    try:
+        init_database()
+        logger.info("MongoDB initialized successfully.")
+    except Exception as e:
+        logger.critical(f"MongoDB initialization FAILED: {e}")
 
     yield
 
     logger.info("Shutting down API...")
 
-
 # =========================
 # APP
 # =========================
+
 app = FastAPI(
     title="Anime List API",
     description="REST API for anime catalog management.",
@@ -47,18 +50,18 @@ app = FastAPI(
 
 app.include_router(animes.router)
 
-
 # =========================
 # ROOT REDIRECT
 # =========================
+
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse("/docs")
 
-
 # =========================
 # HEALTH CHECK
 # =========================
+
 @app.get("/health")
 def health_check():
     db_connected = check_database_connection()
