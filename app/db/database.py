@@ -1,7 +1,7 @@
 import logging
+
 from pymongo import MongoClient
 from pymongo.collection import Collection
-from pymongo.database import Database
 from pymongo.server_api import ServerApi
 
 from app.core.config import settings
@@ -21,14 +21,13 @@ animes_collection = None
 # INIT DATABASE
 # =========================
 
+
 def init_database():
     global client, db, animes_collection
 
     try:
         client = MongoClient(
-            settings.MONGO_URI,
-            server_api=ServerApi("1"),
-            serverSelectionTimeoutMS=5000
+            settings.MONGO_URI, server_api=ServerApi("1"), serverSelectionTimeoutMS=5000
         )
 
         db = client.get_database(settings.DATABASE_NAME)
@@ -47,6 +46,7 @@ def init_database():
 # SAFE ACCESS
 # =========================
 
+
 def get_animes_collection() -> Collection:
     if animes_collection is None:
         raise RuntimeError("Database not initialized. Check lifespan/init_database.")
@@ -56,6 +56,7 @@ def get_animes_collection() -> Collection:
 # =========================
 # INDEXES
 # =========================
+
 
 def create_indexes():
     try:
@@ -70,6 +71,7 @@ def create_indexes():
 # =========================
 # HEALTH CHECK
 # =========================
+
 
 def check_database_connection() -> bool:
     try:

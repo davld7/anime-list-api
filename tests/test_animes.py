@@ -1,14 +1,19 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from main import app
 
-client = TestClient(app)
+
+@pytest.fixture(scope="module")
+def client():
+    with TestClient(app) as test_client:
+        yield test_client
 
 
 # =========================
 # HEALTH CHECK TEST
 # =========================
-def test_health_check():
+def test_health_check(client):
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
@@ -20,7 +25,7 @@ def test_health_check():
 # =========================
 # GET ANIMES PAGINATED TEST
 # =========================
-def test_get_paginated_animes():
+def test_get_paginated_animes(client):
     response = client.get("/animes/page?page=1")
     assert response.status_code == 200
     data = response.json()
@@ -30,7 +35,7 @@ def test_get_paginated_animes():
 # =========================
 # GET TOTAL PAGES TEST
 # =========================
-def test_get_total_pages():
+def test_get_total_pages(client):
     response = client.get("/animes/pages")
     assert response.status_code == 200
     data = response.json()
@@ -43,6 +48,6 @@ def test_get_total_pages():
 # =========================
 # GET BY NAME TEST
 # =========================
-def test_get_anime_by_name():
+def test_get_anime_by_name(client):
     response = client.get("/animes/by-name/nonexistent_anime")
     assert response.status_code in [200, 404]

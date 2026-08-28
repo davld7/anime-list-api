@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.db.database import init_database, check_database_connection
+from app.db.database import check_database_connection, init_database
 from app.routers import animes
 
 # =========================
@@ -14,7 +14,7 @@ from app.routers import animes
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 logger = logging.getLogger("anime-api")
@@ -22,6 +22,7 @@ logger = logging.getLogger("anime-api")
 # =========================
 # LIFESPAN
 # =========================
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,6 +37,7 @@ async def lifespan(app: FastAPI):
     yield
 
     logger.info("Shutting down API...")
+
 
 # =========================
 # APP
@@ -54,13 +56,16 @@ app.include_router(animes.router)
 # ROOT REDIRECT
 # =========================
 
+
 @app.get("/", include_in_schema=False)
 def root():
     return RedirectResponse("/docs")
 
+
 # =========================
 # HEALTH CHECK
 # =========================
+
 
 @app.get("/health")
 def health_check():
@@ -69,15 +74,8 @@ def health_check():
     if not db_connected:
         logger.error("Health check failed: Database not connected")
         raise HTTPException(
-            status_code=503,
-            detail="Service unavailable - database connection failed"
+            status_code=503, detail="Service unavailable - database connection failed"
         )
 
     logger.debug("Health check passed")
-    return JSONResponse(
-        status_code=200,
-        content={
-            "status": "ok",
-            "database": "connected"
-        }
-    )
+    return JSONResponse(status_code=200, content={"status": "ok", "database": "connected"})

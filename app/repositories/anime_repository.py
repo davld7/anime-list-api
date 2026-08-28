@@ -16,11 +16,7 @@ PAGE_SIZE = 10
 def get_all_animes() -> list[dict[str, Any]]:
     collection = get_animes_collection()
 
-    return list(
-        collection.find()
-        .collation(COLLATION)
-        .sort(SORT_BY_NAME)
-    )
+    return list(collection.find().collation(COLLATION).sort(SORT_BY_NAME))
 
 
 def get_anime_by_id(id: ObjectId) -> Optional[dict[str, Any]]:
@@ -39,11 +35,7 @@ def get_paginated_animes(page: int, page_size: int = PAGE_SIZE) -> list[dict[str
     skip = (page - 1) * page_size
 
     return list(
-        collection.find()
-        .collation(COLLATION)
-        .sort(SORT_BY_NAME)
-        .skip(skip)
-        .limit(page_size)
+        collection.find().collation(COLLATION).sort(SORT_BY_NAME).skip(skip).limit(page_size)
     )
 
 
@@ -66,9 +58,7 @@ def update_anime(id: ObjectId, data: dict[str, Any]) -> Optional[dict[str, Any]]
     collection = get_animes_collection()
 
     updated = collection.find_one_and_update(
-        {"_id": id},
-        {"$set": data},
-        return_document=ReturnDocument.AFTER
+        {"_id": id}, {"$set": data}, return_document=ReturnDocument.AFTER
     )
 
     if updated:

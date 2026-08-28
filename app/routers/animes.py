@@ -38,10 +38,7 @@ def parse_object_id(id: str = Path(..., min_length=24, max_length=24)) -> Object
     try:
         return ObjectId(id)
     except InvalidId:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid ObjectId"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ObjectId")
 
 
 # =========================
@@ -79,10 +76,7 @@ def get_total_pages():
 def get_anime_by_id_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
     anime = get_anime_by_id(obj_id)
     if not anime:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Anime not found."
-    )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
     return anime
 
 
@@ -93,10 +87,7 @@ def get_anime_by_id_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
 def get_anime_by_name_endpoint(name: str):
     anime = get_anime_by_name(name)
     if not anime:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Anime not found."
-    )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
     return anime
 
 
@@ -106,10 +97,7 @@ def get_anime_by_name_endpoint(name: str):
 @router.post("/", response_model=Anime, status_code=status.HTTP_201_CREATED)
 def create_anime_endpoint(anime: AnimeBase):
     if get_anime_by_name(anime.name):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Anime already exists."
-    )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Anime already exists.")
     data = anime.model_dump()
     return create_anime(data)
 
@@ -119,16 +107,12 @@ def create_anime_endpoint(anime: AnimeBase):
 # =========================
 @router.put("/{id}", response_model=Anime)
 def update_anime_endpoint(
-    obj_id: ObjectId = Depends(parse_object_id),
-    anime: AnimeBase = Body(...)
+    obj_id: ObjectId = Depends(parse_object_id), anime: AnimeBase = Body(...)
 ):
     data = anime.model_dump()
     updated = update_anime(obj_id, data)
     if not updated:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Anime not found."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
     return updated
 
 
@@ -139,8 +123,5 @@ def update_anime_endpoint(
 def delete_anime_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
     deleted = delete_anime(obj_id)
     if not deleted:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Anime not found."
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
     return None
