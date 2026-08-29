@@ -46,8 +46,36 @@ def test_get_total_pages(client):
 
 
 # =========================
+# GET BY ID TEST
+# =========================
+def test_get_anime_by_id_success(client):
+    response = client.get("/animes/by-id/642a63402537c1f25e5f20fd")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["_id"] == "642a63402537c1f25e5f20fd"
+    assert "name" in data
+
+
+def test_get_anime_by_id_not_found(client):
+    response = client.get("/animes/by-id/123456789012345678901234")
+    assert response.status_code == 404
+
+
+def test_get_anime_by_id_invalid_format(client):
+    response = client.get("/animes/by-id/invalid-id")
+    assert response.status_code == 422
+
+
+# =========================
 # GET BY NAME TEST
 # =========================
-def test_get_anime_by_name(client):
+def test_get_anime_by_name_success(client):
+    response = client.get("/animes/by-name/86 EIGHTY-SIX")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["name"] == "86 EIGHTY-SIX"
+
+
+def test_get_anime_by_name_not_found(client):
     response = client.get("/animes/by-name/nonexistent_anime")
-    assert response.status_code in [200, 404]
+    assert response.status_code == 404

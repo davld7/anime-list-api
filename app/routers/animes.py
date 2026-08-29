@@ -72,7 +72,7 @@ def get_total_pages():
 # =========================
 # GET BY ID
 # =========================
-@router.get("/{id}", response_model=Anime)
+@router.get("/by-id/{id}", response_model=Anime)
 def get_anime_by_id_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
     anime = get_anime_by_id(obj_id)
     if not anime:
