@@ -2,16 +2,9 @@ import math
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from fastapi import (
-    APIRouter,
-    Body,
-    Depends,
-    HTTPException,
-    Path,
-    Query,
-    status,
-)
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 
+from app.core.custom_route import JSONRepairRoute
 from app.repositories.anime_repository import (
     PAGE_SIZE,
     count_animes,
@@ -28,6 +21,7 @@ from app.schemas.anime import Anime, AnimeBase, TotalAnimesPages
 router = APIRouter(
     prefix="/animes",
     tags=["Animes"],
+    route_class=JSONRepairRoute,
 )
 
 

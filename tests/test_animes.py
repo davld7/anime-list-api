@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -79,3 +81,61 @@ def test_get_anime_by_name_success(client):
 def test_get_anime_by_name_not_found(client):
     response = client.get("/animes/by-name/nonexistent_anime")
     assert response.status_code == 404
+
+
+# =========================
+# JSON BODY REPAIR INTEGRATION TEST
+# =========================
+def test_create_anime_with_real_newlines_in_description(client):
+    """Test that real newlines in JSON strings are repaired and accepted."""
+    # Mock the repository to avoid database operations
+    with patch('app.routers.animes.get_anime_by_name') as mock_get_by_name, \
+         patch('app.routers.animes.create_anime') as mock_create:
+
+        # Mock: anime doesn't exist yet
+        mock_get_by_name.return_value = None
+
+        # Mock: return the created anime with an ID
+        mock_create.return_value = {
+            "_id": "507f1f77bcf86cd799439011",
+            "name": "Test Normalization",
+            "description": "Parrafo uno.\n\nParrafo dos.",
+            "episodes": 1,
+            "season": "Invierno 2026",
+            "genres": ["Drama"],
+            "image_url": "https://example.com/a.jpg"
+        }
+
+        # Construct the body manually with REAL newlines (not escaped)
+        # This simulates what Reqable might send
+        invalid_json_body = b'''{
+  "name": "Test Normalization",
+  "description": "Parrafo uno.
+
+Parrafo dos.",
+  "episodes": 1,
+  "season": "Invierno 2026",
+  "genres": [
+    "Drama"
+  ],
+  "image_url": "https://example.com/a.jpg"
+}'''
+
+        # Send the request with the manually constructed body
+        response = client.post(
+            "/animes/",
+            content=invalid_json_body,
+            headers={"Content-Type": "application/json"}
+        )
+
+        # The request should succeed (not fail with JSON parse error)
+        assert response.status_code == 201
+
+        # Verify the repository was called with the repaired data
+        mock_create.assert_called_once()
+        call_args = mock_create.call_args[0][0]
+
+        # The description should contain actual newlines (after JSON deserialization)
+        assert call_args["description"] == "Parrafo uno.\n\nParrafo dos."
+        assert call_args["name"] == "Test Normalization"
+        assert call_args["episodes"] == 1
