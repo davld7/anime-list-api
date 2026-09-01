@@ -153,52 +153,98 @@ def test_login_inactive_user(client):
 # =========================
 # PROTECTED ENDPOINT TESTS
 # =========================
-def test_protected_endpoint_without_authentication(client):
+
+def test_public_endpoint_without_authentication(client):
     response = client.get("/animes/")
+    assert response.status_code == 200
+
+
+def test_protected_endpoint_without_authentication(client):
+    response = client.post(
+        "/animes/",
+        json={
+            "name": "Test Anime",
+            "description": "Test Description",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/image.jpg",
+        },
+    )
+
     assert response.status_code == 401
 
 
 def test_protected_endpoint_with_invalid_token(client):
-    response = client.get(
+    response = client.post(
         "/animes/",
-        headers={"Authorization": "Bearer invalid_token"}
+        json={
+            "name": "Test Anime",
+            "description": "Test Description",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/image.jpg",
+        },
+        headers={"Authorization": "Bearer invalid_token"},
     )
+
     assert response.status_code == 401
 
 
 def test_protected_endpoint_with_valid_token_sufficient_permission(client):
     token = create_access_token(data={"sub": "testuser"})
 
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.repositories.anime_repository.get_all_animes') as mock_get_all:
+    with patch("app.core.dependencies.get_user_by_username") as mock_get_user, \
+         patch("app.routers.animes.get_anime_by_name") as mock_get_by_name, \
+         patch("app.routers.animes.create_anime") as mock_create_anime:
 
         mock_user = {
             "_id": "507f1f77bcf86cd799439011",
             "username": "testuser",
             "password_hash": get_password_hash("password"),
-            "permissions": ["read"],
+            "permissions": ["write"],
             "active": True,
         }
-        mock_get_user.return_value = mock_user
-        mock_get_all.return_value = []
 
-        response = client.get(
+        mock_get_user.return_value = mock_user
+        mock_get_by_name.return_value = None
+
+        mock_create_anime.return_value = {
+            "_id": "507f1f77bcf86cd799439011",
+            "name": "Test Anime",
+            "description": "Test Description",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/image.jpg",
+        }
+
+        response = client.post(
             "/animes/",
-            headers={"Authorization": f"Bearer {token}"}
+            json={
+                "name": "Test Anime",
+                "description": "Test Description",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/image.jpg",
+            },
+            headers={"Authorization": f"Bearer {token}"},
         )
 
-        assert response.status_code == 200
+        assert response.status_code == 201
 
 
 def test_protected_endpoint_with_valid_token_insufficient_permission(client):
     token = create_access_token(data={"sub": "testuser"})
 
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+    with patch("app.core.dependencies.get_user_by_username") as mock_get_user:
         mock_user = {
             "_id": "507f1f77bcf86cd799439011",
             "username": "testuser",
             "password_hash": get_password_hash("password"),
-            "permissions": ["read"],  # Only read, but trying to write
+            "permissions": ["read"],
             "active": True,
         }
         mock_get_user.return_value = mock_user
@@ -211,45 +257,72 @@ def test_protected_endpoint_with_valid_token_insufficient_permission(client):
                 "episodes": 12,
                 "season": "Summer 2024",
                 "genres": ["Action"],
-                "image_url": "https://example.com/image.jpg"
+                "image_url": "https://example.com/image.jpg",
             },
-            headers={"Authorization": f"Bearer {token}"}
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         assert response.status_code == 403
 
 
 def test_protected_endpoint_with_expired_token(client):
-    token = create_access_token(data={"sub": "testuser"}, expires_delta=timedelta(seconds=1))
+    token = create_access_token(
+        data={"sub": "testuser"},
+        expires_delta=timedelta(seconds=1),
+    )
 
     import time
     time.sleep(2)
 
-    response = client.get(
+    response = client.post(
         "/animes/",
-        headers={"Authorization": f"Bearer {token}"}
+        json={
+            "name": "Test Anime",
+            "description": "Test Description",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/image.jpg",
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response.status_code == 401
 
 
 def test_protected_endpoint_with_invalid_sub(client):
-    token = create_access_token(data={"sub": 123})  # Invalid sub type (int instead of str)
+    token = create_access_token(data={"sub": 123})
 
-    response = client.get(
+    response = client.post(
         "/animes/",
-        headers={"Authorization": f"Bearer {token}"}
+        json={
+            "name": "Test Anime",
+            "description": "Test Description",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/image.jpg",
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response.status_code == 401
 
 
 def test_protected_endpoint_with_empty_sub(client):
-    token = create_access_token(data={"sub": ""})  # Empty sub
+    token = create_access_token(data={"sub": ""})
 
-    response = client.get(
+    response = client.post(
         "/animes/",
-        headers={"Authorization": f"Bearer {token}"}
+        json={
+            "name": "Test Anime",
+            "description": "Test Description",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/image.jpg",
+        },
+        headers={"Authorization": f"Bearer {token}"},
     )
 
     assert response.status_code == 401
@@ -258,12 +331,20 @@ def test_protected_endpoint_with_empty_sub(client):
 def test_protected_endpoint_with_nonexistent_user(client):
     token = create_access_token(data={"sub": "nonexistent_user"})
 
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+    with patch("app.core.dependencies.get_user_by_username") as mock_get_user:
         mock_get_user.return_value = None
 
-        response = client.get(
+        response = client.post(
             "/animes/",
-            headers={"Authorization": f"Bearer {token}"}
+            json={
+                "name": "Test Anime",
+                "description": "Test Description",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/image.jpg",
+            },
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         assert response.status_code == 401
@@ -272,19 +353,27 @@ def test_protected_endpoint_with_nonexistent_user(client):
 def test_protected_endpoint_with_inactive_user(client):
     token = create_access_token(data={"sub": "inactive_user"})
 
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+    with patch("app.core.dependencies.get_user_by_username") as mock_get_user:
         mock_user = {
             "_id": "507f1f77bcf86cd799439011",
             "username": "inactive_user",
             "password_hash": get_password_hash("password"),
-            "permissions": ["read"],
+            "permissions": ["write"],
             "active": False,
         }
         mock_get_user.return_value = mock_user
 
-        response = client.get(
+        response = client.post(
             "/animes/",
-            headers={"Authorization": f"Bearer {token}"}
+            json={
+                "name": "Test Anime",
+                "description": "Test Description",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/image.jpg",
+            },
+            headers={"Authorization": f"Bearer {token}"},
         )
 
         assert response.status_code == 401

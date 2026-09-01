@@ -40,7 +40,7 @@ def parse_object_id(id: str = Path(..., min_length=24, max_length=24)) -> Object
 # GET ALL
 # =========================
 @router.get("/", response_model=list[Anime])
-def get_animes(_current_user: dict = Depends(require_permission("read"))):
+def get_animes():
     return get_all_animes()
 
 
@@ -48,9 +48,7 @@ def get_animes(_current_user: dict = Depends(require_permission("read"))):
 # PAGINATION
 # =========================
 @router.get("/page", response_model=list[Anime])
-def get_paginated_animes_endpoint(
-    page: int = Query(1, ge=1), _current_user: dict = Depends(require_permission("read"))
-):
+def get_paginated_animes_endpoint(page: int = Query(1, ge=1)):
     return get_paginated_animes(page)
 
 
@@ -58,7 +56,7 @@ def get_paginated_animes_endpoint(
 # TOTAL PAGES
 # =========================
 @router.get("/pages", response_model=TotalAnimesPages)
-def get_total_pages(_current_user: dict = Depends(require_permission("read"))):
+def get_total_pages():
     total = count_animes()
     return {
         "total_animes": total,
@@ -70,10 +68,7 @@ def get_total_pages(_current_user: dict = Depends(require_permission("read"))):
 # GET BY ID
 # =========================
 @router.get("/by-id/{id}", response_model=Anime)
-def get_anime_by_id_endpoint(
-    obj_id: ObjectId = Depends(parse_object_id),
-    _current_user: dict = Depends(require_permission("read")),
-):
+def get_anime_by_id_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
     anime = get_anime_by_id(obj_id)
     if not anime:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
@@ -84,9 +79,7 @@ def get_anime_by_id_endpoint(
 # GET BY NAME
 # =========================
 @router.get("/by-name/{name}", response_model=Anime)
-def get_anime_by_name_endpoint(
-    name: str, _current_user: dict = Depends(require_permission("read"))
-):
+def get_anime_by_name_endpoint(name: str):
     anime = get_anime_by_name(name)
     if not anime:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
