@@ -5,6 +5,11 @@ class Settings(BaseSettings):
     MONGO_URI: str
     DATABASE_NAME: str = "fastapi"
 
+    INITIAL_ADMIN_USERNAME: str = ""
+    INITIAL_ADMIN_PASSWORD: str = ""
+    JWT_SECRET_KEY: str = ""
+    JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

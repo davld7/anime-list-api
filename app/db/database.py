@@ -15,6 +15,7 @@ logger = logging.getLogger("anime-api.database")
 client = None
 db = None
 animes_collection = None
+users_collection = None
 
 
 # =========================
@@ -23,7 +24,7 @@ animes_collection = None
 
 
 def init_database():
-    global client, db, animes_collection
+    global client, db, animes_collection, users_collection
 
     try:
         client = MongoClient(
@@ -32,6 +33,7 @@ def init_database():
 
         db = client.get_database(settings.DATABASE_NAME)
         animes_collection = db.get_collection("animes")
+        users_collection = db.get_collection("users")
 
         logger.info("MongoDB initialized successfully")
 
@@ -53,6 +55,12 @@ def get_animes_collection() -> Collection:
     return animes_collection
 
 
+def get_users_collection() -> Collection:
+    if users_collection is None:
+        raise RuntimeError("Database not initialized. Check lifespan/init_database.")
+    return users_collection
+
+
 # =========================
 # INDEXES
 # =========================
@@ -63,6 +71,10 @@ def create_indexes():
         collection = get_animes_collection()
         collection.create_index([("name", 1)], unique=True)
         logger.info("Index created: name")
+
+        users_collection = get_users_collection()
+        users_collection.create_index([("username", 1)], unique=True)
+        logger.info("Index created: username")
 
     except Exception as e:
         logger.warning(f"Index warning: {e}")

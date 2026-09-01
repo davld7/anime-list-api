@@ -5,6 +5,7 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 
 from app.core.custom_route import JSONRepairRoute
+from app.core.dependencies import require_permission
 from app.repositories.anime_repository import (
     PAGE_SIZE,
     count_animes,
@@ -39,7 +40,7 @@ def parse_object_id(id: str = Path(..., min_length=24, max_length=24)) -> Object
 # GET ALL
 # =========================
 @router.get("/", response_model=list[Anime])
-def get_animes():
+def get_animes(_current_user: dict = Depends(require_permission("read"))):
     return get_all_animes()
 
 
@@ -47,7 +48,9 @@ def get_animes():
 # PAGINATION
 # =========================
 @router.get("/page", response_model=list[Anime])
-def get_paginated_animes_endpoint(page: int = Query(1, ge=1)):
+def get_paginated_animes_endpoint(
+    page: int = Query(1, ge=1), _current_user: dict = Depends(require_permission("read"))
+):
     return get_paginated_animes(page)
 
 
@@ -55,7 +58,7 @@ def get_paginated_animes_endpoint(page: int = Query(1, ge=1)):
 # TOTAL PAGES
 # =========================
 @router.get("/pages", response_model=TotalAnimesPages)
-def get_total_pages():
+def get_total_pages(_current_user: dict = Depends(require_permission("read"))):
     total = count_animes()
     return {
         "total_animes": total,
@@ -67,7 +70,10 @@ def get_total_pages():
 # GET BY ID
 # =========================
 @router.get("/by-id/{id}", response_model=Anime)
-def get_anime_by_id_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
+def get_anime_by_id_endpoint(
+    obj_id: ObjectId = Depends(parse_object_id),
+    _current_user: dict = Depends(require_permission("read")),
+):
     anime = get_anime_by_id(obj_id)
     if not anime:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
@@ -78,7 +84,9 @@ def get_anime_by_id_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
 # GET BY NAME
 # =========================
 @router.get("/by-name/{name}", response_model=Anime)
-def get_anime_by_name_endpoint(name: str):
+def get_anime_by_name_endpoint(
+    name: str, _current_user: dict = Depends(require_permission("read"))
+):
     anime = get_anime_by_name(name)
     if not anime:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
@@ -89,7 +97,9 @@ def get_anime_by_name_endpoint(name: str):
 # CREATE
 # =========================
 @router.post("/", response_model=Anime, status_code=status.HTTP_201_CREATED)
-def create_anime_endpoint(anime: AnimeBase):
+def create_anime_endpoint(
+    anime: AnimeBase, _current_user: dict = Depends(require_permission("write"))
+):
     if get_anime_by_name(anime.name):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Anime already exists.")
     data = anime.model_dump()
@@ -101,7 +111,9 @@ def create_anime_endpoint(anime: AnimeBase):
 # =========================
 @router.put("/{id}", response_model=Anime)
 def update_anime_endpoint(
-    obj_id: ObjectId = Depends(parse_object_id), anime: AnimeBase = Body(...)
+    obj_id: ObjectId = Depends(parse_object_id),
+    anime: AnimeBase = Body(...),
+    _current_user: dict = Depends(require_permission("write")),
 ):
     data = anime.model_dump()
     updated = update_anime(obj_id, data)
@@ -114,7 +126,10 @@ def update_anime_endpoint(
 # DELETE
 # =========================
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_anime_endpoint(obj_id: ObjectId = Depends(parse_object_id)):
+def delete_anime_endpoint(
+    obj_id: ObjectId = Depends(parse_object_id),
+    _current_user: dict = Depends(require_permission("admin")),
+):
     deleted = delete_anime(obj_id)
     if not deleted:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")

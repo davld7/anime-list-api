@@ -1,0 +1,37 @@
+from typing import Annotated
+
+from pydantic import BaseModel, BeforeValidator, Field
+
+
+def convert_object_id(v):
+    if isinstance(v, dict):
+        return str(v.get("_id") or v.get("id"))
+    return str(v)
+
+
+class UserBase(BaseModel):
+    username: str = Field(..., min_length=1, description="Username", examples=["david"])
+    permissions: list[str] = Field(
+        default_factory=list, description="User permissions", examples=[["read", "write", "admin"]]
+    )
+    active: bool = Field(default=True, description="Whether the user is active")
+
+
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=1, description="Plain text password")
+
+
+class UserResponse(UserBase):
+    id: Annotated[str | None, BeforeValidator(convert_object_id)] = Field(
+        default=None, alias="_id", description="MongoDB ObjectId"
+    )
+
+
+class LoginRequest(BaseModel):
+    username: str = Field(..., min_length=1, description="Username")
+    password: str = Field(..., min_length=1, description="Password")
+
+
+class TokenResponse(BaseModel):
+    access_token: str = Field(..., description="JWT access token")
+    token_type: str = Field(default="bearer", description="Token type")
