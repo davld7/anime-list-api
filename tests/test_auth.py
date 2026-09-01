@@ -151,14 +151,16 @@ def test_login_inactive_user(client):
 
 
 # =========================
-# PROTECTED ENDPOINT TESTS
+# PUBLIC ENDPOINT TESTS
 # =========================
-
 def test_public_endpoint_without_authentication(client):
     response = client.get("/animes/")
     assert response.status_code == 200
 
 
+# =========================
+# PROTECTED ENDPOINT TESTS
+# =========================
 def test_protected_endpoint_without_authentication(client):
     response = client.post(
         "/animes/",
