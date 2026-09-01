@@ -1,8 +1,11 @@
+import os
 from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
 
 from app.core.security import (
     create_access_token,
@@ -230,6 +233,63 @@ def test_protected_endpoint_with_expired_token(client):
     assert response.status_code == 401
 
 
+def test_protected_endpoint_with_invalid_sub(client):
+    token = create_access_token(data={"sub": 123})  # Invalid sub type (int instead of str)
+
+    response = client.get(
+        "/animes/",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 401
+
+
+def test_protected_endpoint_with_empty_sub(client):
+    token = create_access_token(data={"sub": ""})  # Empty sub
+
+    response = client.get(
+        "/animes/",
+        headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 401
+
+
+def test_protected_endpoint_with_nonexistent_user(client):
+    token = create_access_token(data={"sub": "nonexistent_user"})
+
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+        mock_get_user.return_value = None
+
+        response = client.get(
+            "/animes/",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+        assert response.status_code == 401
+
+
+def test_protected_endpoint_with_inactive_user(client):
+    token = create_access_token(data={"sub": "inactive_user"})
+
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+        mock_user = {
+            "_id": "507f1f77bcf86cd799439011",
+            "username": "inactive_user",
+            "password_hash": get_password_hash("password"),
+            "permissions": ["read"],
+            "active": False,
+        }
+        mock_get_user.return_value = mock_user
+
+        response = client.get(
+            "/animes/",
+            headers={"Authorization": f"Bearer {token}"}
+        )
+
+        assert response.status_code == 401
+
+
 # =========================
 # ADMIN CREATION TESTS
 # =========================
@@ -254,6 +314,7 @@ def test_admin_creation_when_no_users_exist():
         assert call_args["active"] is True
         assert "password_hash" in call_args
         assert call_args["password_hash"] != "admin_password"
+        assert verify_password("admin_password", call_args["password_hash"])
 
     main.settings = original_settings
 

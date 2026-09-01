@@ -12,7 +12,6 @@ dependencies = [
     "ruff>=0.16.4",
     "python-jose[cryptography]>=3.5.0",
     "passlib[argon2]>=1.7.4",
-    "python-multipart>=0.0.32",
 ]
 
 [tool.ruff]
@@ -22,6 +21,13 @@ extend-exclude = [".venv", "venv", "__pycache__", "build", "dist"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]
 
 [project.optional-dependencies]
 dev = [

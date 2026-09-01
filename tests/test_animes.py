@@ -1,7 +1,10 @@
+import os
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
 
 from app.core.security import create_access_token, get_password_hash
 from main import app
