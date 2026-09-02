@@ -36,6 +36,11 @@ def count_users() -> int:
     return collection.count_documents({})
 
 
+def count_active_admins() -> int:
+    collection = get_users_collection()
+    return collection.count_documents({"active": True, "permissions": "admin"})
+
+
 def update_user_by_id(id: ObjectId, update_data: dict[str, Any]) -> dict[str, Any] | None:
     collection = get_users_collection()
 

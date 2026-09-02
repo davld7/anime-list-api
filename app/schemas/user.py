@@ -1,6 +1,8 @@
 from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator, Field
+from pydantic import BaseModel, BeforeValidator, Field, field_validator
+
+ALLOWED_PERMISSIONS = {"read", "write", "admin"}
 
 
 def convert_object_id(v):
@@ -53,3 +55,23 @@ class ChangePasswordRequest(BaseModel):
 
 class ChangePasswordResponse(BaseModel):
     message: str = Field(..., description="Information message")
+
+
+class UpdatePermissionsRequest(BaseModel):
+    permissions: list[str] = Field(
+        default_factory=list, description="Replacement permissions", examples=[["read", "write"]]
+    )
+
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, v: list[str]) -> list[str]:
+        seen: set[str] = set()
+        for perm in v:
+            if perm not in ALLOWED_PERMISSIONS:
+                raise ValueError(
+                    f"Invalid permission: '{perm}'. Allowed: {sorted(ALLOWED_PERMISSIONS)}"
+                )
+            if perm in seen:
+                raise ValueError(f"Duplicate permission: '{perm}'")
+            seen.add(perm)
+        return v

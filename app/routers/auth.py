@@ -2,12 +2,15 @@ import logging
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from bson.errors import InvalidId
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
 from pymongo.errors import DuplicateKeyError
 
-from app.core.dependencies import get_current_user
+from app.core.dependencies import get_current_user, require_permission
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.repositories.user_repository import (
+    count_active_admins,
+    get_user_by_id,
     get_user_by_username,
     update_user_by_id,
     update_user_by_id_atomic,
@@ -19,11 +22,20 @@ from app.schemas.user import (
     ChangeUsernameResponse,
     LoginRequest,
     TokenResponse,
+    UpdatePermissionsRequest,
+    UserResponse,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 logger = logging.getLogger("anime-api.auth")
+
+
+def parse_user_object_id(user_id: str = Path(..., min_length=24, max_length=24)) -> ObjectId:
+    try:
+        return ObjectId(user_id)
+    except InvalidId:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ObjectId")
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -134,3 +146,43 @@ def change_password(
     return ChangePasswordResponse(
         message="Password updated successfully. Please log in again with your new password."
     )
+
+
+@router.put("/users/{user_id}/permissions", response_model=UserResponse)
+def replace_user_permissions(
+    user_id: ObjectId = Depends(parse_user_object_id),
+    request: UpdatePermissionsRequest = Body(...),
+    current_user: dict = Depends(require_permission("admin")),
+):
+    target_user = get_user_by_id(user_id)
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    new_permissions = request.permissions
+    target_is_active_admin = target_user.get("active", True) and "admin" in target_user.get(
+        "permissions", []
+    )
+
+    if target_is_active_admin and "admin" not in new_permissions:
+        if count_active_admins() == 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot remove 'admin' from the last active administrator",
+            )
+
+    updated_user = update_user_by_id(user_id, {"permissions": new_permissions})
+    if updated_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    logger.info(
+        f"User {current_user['username']} updated permissions of "
+        f"{target_user['username']} to {new_permissions}"
+    )
+
+    return updated_user
