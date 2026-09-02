@@ -296,7 +296,7 @@ def create_new_user(
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Username already taken",
-        )
+        ) from None
 
     logger.info(
         f"User {current_user['username']} created user {created_user['username']}"
