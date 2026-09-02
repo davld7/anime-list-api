@@ -1,10 +1,19 @@
 import logging
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, status
+from bson import ObjectId
+from fastapi import APIRouter, Depends, HTTPException, status
+from pymongo.errors import DuplicateKeyError
 
+from app.core.dependencies import get_current_user
 from app.core.security import create_access_token, verify_password
-from app.repositories.user_repository import get_user_by_username
-from app.schemas.user import LoginRequest, TokenResponse
+from app.repositories.user_repository import get_user_by_username, update_user_by_id
+from app.schemas.user import (
+    ChangeUsernameRequest,
+    ChangeUsernameResponse,
+    LoginRequest,
+    TokenResponse,
+)
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -38,3 +47,48 @@ def login(login_data: LoginRequest):
     logger.info(f"User {user['username']} logged in successfully")
 
     return TokenResponse(access_token=access_token)
+
+
+@router.put("/username", response_model=ChangeUsernameResponse)
+def change_username(
+    request: ChangeUsernameRequest,
+    current_user: Annotated[dict, Depends(get_current_user)]
+):
+    current_username = current_user["username"]
+
+    if request.new_username == current_username:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New username must be different from current username"
+        )
+
+    existing_user = get_user_by_username(request.new_username)
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already taken"
+        )
+
+    user_id = ObjectId(current_user["_id"])
+
+    try:
+        updated_user = update_user_by_id(user_id, {"username": request.new_username})
+
+        if updated_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+
+        logger.info(f"User {current_username} changed username to {request.new_username}")
+
+        return ChangeUsernameResponse(
+            new_username=request.new_username,
+            message="Username updated successfully. Please log in again with your new username."
+        )
+
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already taken"
+        )
