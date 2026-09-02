@@ -18,7 +18,7 @@ def client():
 
 @pytest.fixture(scope="module")
 def auth_headers():
-    token = create_access_token(data={"sub": "testuser"})
+    token = create_access_token(data={"sub": "testuser", "auth_version": 1})
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -30,6 +30,7 @@ def mock_authenticated_user():
         "password_hash": get_password_hash("password"),
         "permissions": ["read", "write", "admin"],
         "active": True,
+        "auth_version": 1,
     }
 
 

@@ -55,6 +55,16 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    jwt_auth_version = payload.get("auth_version")
+    user_auth_version = user.get("auth_version", 1)
+
+    if jwt_auth_version != user_auth_version:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has been revoked",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     return user
 
 

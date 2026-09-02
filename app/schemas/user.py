@@ -44,3 +44,12 @@ class ChangeUsernameRequest(BaseModel):
 class ChangeUsernameResponse(BaseModel):
     new_username: str = Field(..., description="Updated username")
     message: str = Field(..., description="Information message")
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(..., min_length=1, description="Current password")
+    new_password: str = Field(..., min_length=1, description="New password")
+
+
+class ChangePasswordResponse(BaseModel):
+    message: str = Field(..., description="Information message")
