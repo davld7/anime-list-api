@@ -35,12 +35,12 @@ def init_database():
         animes_collection = db.get_collection("animes")
         users_collection = db.get_collection("users")
 
-        logger.info("MongoDB initialized successfully")
+        logger.info("MongoDB connection initialized.")
 
         create_indexes()
 
     except Exception as e:
-        logger.critical(f"MongoDB initialization failed: {e}")
+        logger.critical(f"MongoDB connection failed: {e}.")
         raise
 
 
@@ -68,13 +68,13 @@ def get_users_collection() -> Collection:
 
 def create_indexes():
     try:
-        collection = get_animes_collection()
-        collection.create_index([("name", 1)], unique=True)
-        logger.info("Index created: name")
+        animes_collection = get_animes_collection()
+        animes_collection.create_index([("name", 1)], unique=True)
+        logger.info("Animes index ensured: name.")
 
         users_collection = get_users_collection()
         users_collection.create_index([("username", 1)], unique=True)
-        logger.info("Index created: username")
+        logger.info("Users index ensured: username.")
 
     except Exception as e:
         logger.warning(f"Index warning: {e}")

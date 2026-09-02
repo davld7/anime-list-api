@@ -23,20 +23,17 @@ logger = logging.getLogger("anime-api")
 # LIFESPAN
 # =========================
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting API lifecycle...")
-
+    logger.info("API startup initiated.")
     try:
         init_database()
-        logger.info("MongoDB initialized successfully.")
     except Exception as e:
         logger.critical(f"MongoDB initialization FAILED: {e}")
 
     yield
 
-    logger.info("Shutting down API...")
+    logger.info("API shutdown initiated.")
 
 
 # =========================
