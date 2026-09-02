@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from pymongo.errors import DuplicateKeyError
 
 os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
 
@@ -2056,3 +2057,474 @@ def test_toggle_active_preserves_other_fields(client):
         collection = get_users_collection()
         collection.delete_one({"_id": ObjectId(admin["_id"])})
         collection.delete_one({"_id": ObjectId(target["_id"])})
+
+
+# =========================
+# ADMIN CREATE USER TESTS
+# =========================
+
+
+def test_admin_can_create_user(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name, \
+         patch("app.routers.auth.create_user") as mock_create:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = None
+        mock_create.return_value = {
+            "_id": "507f1f77bcf86cd799439099",
+            "username": "new_user",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read"],
+                "active": True,
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["username"] == "new_user"
+        assert data["permissions"] == ["read"]
+        assert data["active"] is True
+        assert "password" not in data
+        assert "password_hash" not in data
+
+        mock_create.assert_called_once()
+        call_args = mock_create.call_args[0][0]
+        assert call_args["username"] == "new_user"
+        assert call_args["password_hash"] != "password123"
+        assert call_args["permissions"] == ["read"]
+        assert call_args["active"] is True
+
+
+def test_create_user_with_admin_permissions(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name, \
+         patch("app.routers.auth.create_user") as mock_create:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = None
+        mock_create.return_value = {
+            "_id": "507f1f77bcf86cd799439099",
+            "username": "new_admin",
+            "permissions": ["read", "write", "admin"],
+            "active": True,
+            "auth_version": 1,
+        }
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_admin",
+                "password": "password123",
+                "permissions": ["read", "write", "admin"],
+                "active": True,
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["permissions"] == ["read", "write", "admin"]
+
+
+def test_create_user_inactive(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name, \
+         patch("app.routers.auth.create_user") as mock_create:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = None
+        mock_create.return_value = {
+            "_id": "507f1f77bcf86cd799439099",
+            "username": "inactive_user",
+            "permissions": ["read"],
+            "active": False,
+            "auth_version": 1,
+        }
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "inactive_user",
+                "password": "password123",
+                "permissions": ["read"],
+                "active": False,
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["active"] is False
+
+
+def test_create_user_without_authentication(client):
+    response = client.post(
+        "/auth/users",
+        json={
+            "username": "new_user",
+            "password": "password123",
+            "permissions": ["read"],
+        },
+    )
+
+    assert response.status_code == 401
+
+
+def test_create_user_without_admin_permission(client):
+    non_admin = _admin_mock_user(permissions=["read", "write"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = non_admin
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 403
+
+
+def test_create_user_username_already_taken(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = {"username": "existing_user"}
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "existing_user",
+                "password": "password123",
+                "permissions": ["read"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 409
+
+
+def test_create_user_duplicate_key_error(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name, \
+         patch("app.routers.auth.create_user") as mock_create:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = None
+        mock_create.side_effect = DuplicateKeyError("duplicate key error")
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 409
+
+
+def test_create_user_missing_username(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = admin
+
+        response = client.post(
+            "/auth/users",
+            json={"password": "password123", "permissions": ["read"]},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_create_user_missing_password(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = admin
+
+        response = client.post(
+            "/auth/users",
+            json={"username": "new_user", "permissions": ["read"]},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_create_user_empty_username(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = admin
+
+        response = client.post(
+            "/auth/users",
+            json={"username": "", "password": "password123", "permissions": ["read"]},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_create_user_empty_password(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = admin
+
+        response = client.post(
+            "/auth/users",
+            json={"username": "new_user", "password": "", "permissions": ["read"]},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_create_user_invalid_permission(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = admin
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read", "superadmin"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_create_user_duplicate_permission_rejected(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = admin
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read", "read"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_create_user_defaults_active_true(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name, \
+         patch("app.routers.auth.create_user") as mock_create:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = None
+        mock_create.return_value = {
+            "_id": "507f1f77bcf86cd799439099",
+            "username": "new_user",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["active"] is True
+
+
+def test_create_user_creates_in_database(client):
+    from bson import ObjectId
+
+    from app.repositories.user_repository import (
+        create_user as repo_create_user,
+    )
+    from app.repositories.user_repository import (
+        get_users_collection,
+    )
+
+    collection = get_users_collection()
+    collection.delete_one({"username": "admin_create"})
+    collection.delete_one({"username": "created_via_endpoint"})
+
+    admin = repo_create_user({
+        "username": "admin_create",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+
+    try:
+        admin_token = create_access_token(
+            data={"sub": "admin_create", "auth_version": 1}
+        )
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "created_via_endpoint",
+                "password": "password123",
+                "permissions": ["read", "write"],
+                "active": True,
+            },
+            headers=admin_headers,
+        )
+        assert response.status_code == 201
+
+        data = response.json()
+        assert data["username"] == "created_via_endpoint"
+        assert data["permissions"] == ["read", "write"]
+        assert data["active"] is True
+        assert "password" not in data
+        assert "password_hash" not in data
+
+        from app.repositories.user_repository import get_user_by_username
+        db_user = get_user_by_username("created_via_endpoint")
+        assert db_user is not None
+        assert db_user["username"] == "created_via_endpoint"
+        assert db_user["permissions"] == ["read", "write"]
+        assert db_user["active"] is True
+        assert db_user["auth_version"] == 1
+        assert verify_password("password123", db_user["password_hash"])
+
+        collection = get_users_collection()
+        created = get_user_by_username("created_via_endpoint")
+        collection.delete_one({"_id": created["_id"]})
+    finally:
+        collection = get_users_collection()
+        collection.delete_one({"_id": ObjectId(admin["_id"])})
+
+
+def test_create_user_auth_version_starts_at_one(client):
+    from bson import ObjectId
+
+    from app.repositories.user_repository import (
+        create_user as repo_create_user,
+    )
+    from app.repositories.user_repository import (
+        get_users_collection,
+    )
+
+    collection = get_users_collection()
+    collection.delete_one({"username": "admin_version"})
+    collection.delete_one({"username": "version_check_user"})
+
+    admin = repo_create_user({
+        "username": "admin_version",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+
+    try:
+        admin_token = create_access_token(
+            data={"sub": "admin_version", "auth_version": 1}
+        )
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "version_check_user",
+                "password": "password123",
+                "permissions": ["read"],
+            },
+            headers=admin_headers,
+        )
+        assert response.status_code == 201
+
+        from app.repositories.user_repository import get_user_by_username
+        db_user = get_user_by_username("version_check_user")
+        assert db_user["auth_version"] == 1
+
+        collection = get_users_collection()
+        collection.delete_one({"_id": db_user["_id"]})
+    finally:
+        collection = get_users_collection()
+        collection.delete_one({"_id": ObjectId(admin["_id"])})
+
+
+def test_create_user_response_never_exposes_password_hash(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_username") as mock_get_by_name, \
+         patch("app.routers.auth.create_user") as mock_create:
+
+        mock_current.return_value = admin
+        mock_get_by_name.return_value = None
+        mock_create.return_value = {
+            "_id": "507f1f77bcf86cd799439099",
+            "username": "new_user",
+            "password_hash": "should_not_appear",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+
+        response = client.post(
+            "/auth/users",
+            json={
+                "username": "new_user",
+                "password": "password123",
+                "permissions": ["read"],
+            },
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 201
+        response_text = response.text
+        assert "password_hash" not in response_text
+        assert "should_not_appear" not in response_text

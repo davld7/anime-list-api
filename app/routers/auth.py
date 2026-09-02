@@ -10,6 +10,7 @@ from app.core.dependencies import get_current_user, require_permission
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.repositories.user_repository import (
     count_active_admins,
+    create_user,
     get_user_by_id,
     get_user_by_username,
     update_user_by_id,
@@ -25,6 +26,7 @@ from app.schemas.user import (
     ToggleActiveRequest,
     TokenResponse,
     UpdatePermissionsRequest,
+    UserCreate,
     UserResponse,
 )
 
@@ -271,3 +273,33 @@ def toggle_user_active(
     )
 
     return updated_user
+
+
+@router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def create_new_user(
+    user_data: UserCreate,
+    current_user: dict = Depends(require_permission("admin")),
+):
+    existing_user = get_user_by_username(user_data.username)
+    if existing_user is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already taken",
+        )
+
+    user_dict = user_data.model_dump()
+    user_dict["password_hash"] = get_password_hash(user_dict.pop("password"))
+
+    try:
+        created_user = create_user(user_dict)
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Username already taken",
+        )
+
+    logger.info(
+        f"User {current_user['username']} created user {created_user['username']}"
+    )
+
+    return created_user

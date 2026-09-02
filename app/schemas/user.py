@@ -18,6 +18,20 @@ class UserBase(BaseModel):
     )
     active: bool = Field(default=True, description="Whether the user is active")
 
+    @field_validator("permissions")
+    @classmethod
+    def validate_permissions(cls, v: list[str]) -> list[str]:
+        seen: set[str] = set()
+        for perm in v:
+            if perm not in ALLOWED_PERMISSIONS:
+                raise ValueError(
+                    f"Invalid permission: '{perm}'. Allowed: {sorted(ALLOWED_PERMISSIONS)}"
+                )
+            if perm in seen:
+                raise ValueError(f"Duplicate permission: '{perm}'")
+            seen.add(perm)
+        return v
+
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=1, description="Plain text password")
