@@ -16,6 +16,7 @@ from app.repositories.user_repository import (
     update_user_by_id_atomic,
 )
 from app.schemas.user import (
+    AdminUpdatePasswordRequest,
     ChangePasswordRequest,
     ChangePasswordResponse,
     ChangeUsernameRequest,
@@ -186,3 +187,39 @@ def replace_user_permissions(
     )
 
     return updated_user
+
+
+@router.put("/users/{user_id}/password", response_model=ChangePasswordResponse)
+def update_user_password(
+    user_id: ObjectId = Depends(parse_user_object_id),
+    request: AdminUpdatePasswordRequest = Body(...),
+    current_user: dict = Depends(require_permission("admin")),
+):
+    target_user = get_user_by_id(user_id)
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    new_password_hash = get_password_hash(request.new_password)
+
+    updated_user = update_user_by_id_atomic(
+        user_id,
+        {"password_hash": new_password_hash},
+        {"auth_version": 1}
+    )
+
+    if updated_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    logger.info(
+        f"User {current_user['username']} changed password of user {target_user['username']}"
+    )
+
+    return ChangePasswordResponse(
+        message="Password updated successfully. Please log in again with your new password."
+    )

@@ -57,6 +57,10 @@ class ChangePasswordResponse(BaseModel):
     message: str = Field(..., description="Information message")
 
 
+class AdminUpdatePasswordRequest(BaseModel):
+    new_password: str = Field(..., min_length=1, description="New password")
+
+
 class UpdatePermissionsRequest(BaseModel):
     permissions: list[str] = Field(
         default_factory=list, description="Replacement permissions", examples=[["read", "write"]]
