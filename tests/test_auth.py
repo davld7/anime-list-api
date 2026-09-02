@@ -1714,3 +1714,345 @@ def test_admin_update_password_increments_auth_version(client):
         collection = get_users_collection()
         collection.delete_one({"_id": ObjectId(admin["_id"])})
         collection.delete_one({"_id": ObjectId(target["_id"])})
+
+
+# =========================
+# TOGGLE USER ACTIVE TESTS
+# =========================
+
+
+def test_admin_can_deactivate_user(client):
+    from bson import ObjectId
+
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=True)
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.update_user_by_id_atomic") as mock_update:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_update.return_value = {**target, "active": False}
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert response.json()["active"] is False
+
+        mock_update.assert_called_once_with(
+            ObjectId(TARGET_USER_ID),
+            {"active": False},
+            {"auth_version": 1},
+        )
+
+
+def test_admin_can_activate_user(client):
+    from bson import ObjectId
+
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=False)
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.update_user_by_id_atomic") as mock_update:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_update.return_value = {**target, "active": True}
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": True},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert response.json()["active"] is True
+
+        mock_update.assert_called_once_with(
+            ObjectId(TARGET_USER_ID),
+            {"active": True},
+            {"auth_version": 1},
+        )
+
+
+def test_toggle_active_without_authentication(client):
+    response = client.put(
+        f"/auth/users/{TARGET_USER_ID}/active",
+        json={"active": False},
+    )
+
+    assert response.status_code == 401
+
+
+def test_toggle_active_without_admin_permission(client):
+    non_admin = _admin_mock_user(permissions=["read", "write"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = non_admin
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 403
+
+
+def test_toggle_active_user_not_found(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = None
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 404
+
+
+def test_toggle_active_invalid_object_id(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.put(
+            "/auth/users/zzzzzzzzzzzzzzzzzzzzzzzz/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 400
+
+
+def test_toggle_active_short_object_id(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.put(
+            "/auth/users/abc/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_toggle_active_missing_field(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_toggle_active_invalid_value(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": "maybe"},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_toggle_active_idempotent_when_state_already_matches(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=True)
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.update_user_by_id_atomic") as mock_update:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": True},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert response.json()["active"] is True
+        mock_update.assert_not_called()
+
+
+def test_toggle_active_last_active_admin_returns_409(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=True, permissions=["read", "admin"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.count_active_admins") as mock_count:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_count.return_value = 1
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 409
+
+
+def test_admin_can_deactivate_self_when_another_active_admin_exists(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=True, permissions=["read", "admin"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.count_active_admins") as mock_count, \
+         patch("app.routers.auth.update_user_by_id_atomic") as mock_update:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_count.return_value = 2
+        mock_update.return_value = {**target, "active": False}
+
+        response = client.put(
+            f"/auth/users/{TARGET_USER_ID}/active",
+            json={"active": False},
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert response.json()["active"] is False
+
+
+def test_toggle_active_increments_auth_version(client):
+    from bson import ObjectId
+
+    from app.repositories.user_repository import (
+        create_user,
+        get_user_by_username,
+        get_users_collection,
+    )
+
+    collection = get_users_collection()
+    collection.delete_many({"username": {"$in": ["admin_toggle", "target_toggle"]}})
+
+    admin = create_user({
+        "username": "admin_toggle",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+    target = create_user({
+        "username": "target_toggle",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read"],
+        "active": True,
+        "auth_version": 1,
+    })
+
+    try:
+        admin_token = create_access_token(
+            data={"sub": "admin_toggle", "auth_version": 1}
+        )
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.put(
+            f"/auth/users/{target['_id']}/active",
+            json={"active": False},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+
+        updated = get_user_by_username("target_toggle")
+        assert updated["auth_version"] == 2
+        assert updated["active"] is False
+        assert updated["username"] == "target_toggle"
+        assert updated["permissions"] == ["read"]
+
+        response = client.put(
+            f"/auth/users/{target['_id']}/active",
+            json={"active": True},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+
+        updated = get_user_by_username("target_toggle")
+        assert updated["auth_version"] == 3
+        assert updated["active"] is True
+        assert updated["username"] == "target_toggle"
+        assert updated["permissions"] == ["read"]
+    finally:
+        collection = get_users_collection()
+        collection.delete_one({"_id": ObjectId(admin["_id"])})
+        collection.delete_one({"_id": ObjectId(target["_id"])})
+
+
+def test_toggle_active_preserves_other_fields(client):
+    from bson import ObjectId
+
+    from app.repositories.user_repository import (
+        create_user,
+        get_user_by_username,
+        get_users_collection,
+    )
+
+    collection = get_users_collection()
+    collection.delete_many({"username": {"$in": ["admin_preserve", "target_preserve"]}})
+
+    admin = create_user({
+        "username": "admin_preserve",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+    target = create_user({
+        "username": "target_preserve",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write"],
+        "active": True,
+        "auth_version": 1,
+    })
+
+    try:
+        admin_token = create_access_token(
+            data={"sub": "admin_preserve", "auth_version": 1}
+        )
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.put(
+            f"/auth/users/{target['_id']}/active",
+            json={"active": False},
+            headers=admin_headers,
+        )
+        assert response.status_code == 200
+
+        updated = get_user_by_username("target_preserve")
+        assert updated["username"] == "target_preserve"
+        assert updated["permissions"] == ["read", "write"]
+        assert verify_password("password", updated["password_hash"])
+        assert updated["active"] is False
+        assert updated["auth_version"] == 2
+    finally:
+        collection = get_users_collection()
+        collection.delete_one({"_id": ObjectId(admin["_id"])})
+        collection.delete_one({"_id": ObjectId(target["_id"])})

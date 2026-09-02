@@ -61,6 +61,10 @@ class AdminUpdatePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=1, description="New password")
 
 
+class ToggleActiveRequest(BaseModel):
+    active: bool = Field(..., description="Whether the user should be active")
+
+
 class UpdatePermissionsRequest(BaseModel):
     permissions: list[str] = Field(
         default_factory=list, description="Replacement permissions", examples=[["read", "write"]]

@@ -22,6 +22,7 @@ from app.schemas.user import (
     ChangeUsernameRequest,
     ChangeUsernameResponse,
     LoginRequest,
+    ToggleActiveRequest,
     TokenResponse,
     UpdatePermissionsRequest,
     UserResponse,
@@ -223,3 +224,50 @@ def update_user_password(
     return ChangePasswordResponse(
         message="Password updated successfully. Please log in again with your new password."
     )
+
+
+@router.put("/users/{user_id}/active", response_model=UserResponse)
+def toggle_user_active(
+    user_id: ObjectId = Depends(parse_user_object_id),
+    request: ToggleActiveRequest = Body(...),
+    current_user: dict = Depends(require_permission("admin")),
+):
+    target_user = get_user_by_id(user_id)
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    current_active = target_user.get("active", True)
+    requested_active = request.active
+
+    if current_active == requested_active:
+        return target_user
+
+    if not requested_active:
+        target_is_active_admin = current_active and "admin" in target_user.get("permissions", [])
+        if target_is_active_admin and count_active_admins() == 1:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Cannot deactivate the last active administrator",
+            )
+
+    updated_user = update_user_by_id_atomic(
+        user_id,
+        {"active": requested_active},
+        {"auth_version": 1},
+    )
+
+    if updated_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    action = "activated" if requested_active else "deactivated"
+    logger.info(
+        f"User {current_user['username']} {action} user {target_user['username']}"
+    )
+
+    return updated_user
