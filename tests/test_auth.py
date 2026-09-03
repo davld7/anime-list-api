@@ -2890,3 +2890,111 @@ def test_get_user_pages_active_filter(client):
 
         assert response.status_code == 200
         mock_count.assert_called_once_with({"active": True})
+
+
+# =========================
+# GET USER BY ID TESTS
+# =========================
+
+
+def test_get_user_by_id_returns_user(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+
+        response = client.get(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["_id"] == TARGET_USER_ID
+        assert data["username"] == "target_user"
+        assert data["permissions"] == ["read"]
+        assert data["active"] is True
+
+
+def test_get_user_by_id_not_found(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = None
+
+        response = client.get(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 404
+
+
+def test_get_user_by_id_invalid_object_id(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.get(
+            "/auth/users/zzzzzzzzzzzzzzzzzzzzzzzz",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 400
+
+
+def test_get_user_by_id_requires_authentication(client):
+    response = client.get(
+        f"/auth/users/{TARGET_USER_ID}",
+    )
+
+    assert response.status_code == 401
+
+
+def test_get_user_by_id_requires_admin_permission(client):
+    non_admin = _admin_mock_user(permissions=["read", "write"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = non_admin
+
+        response = client.get(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 403
+
+
+def test_get_user_by_id_never_exposes_sensitive_fields(client):
+    admin = _admin_mock_user()
+    target = {
+        "_id": TARGET_USER_ID,
+        "username": "target_user",
+        "password_hash": "super_secret_hash_value",
+        "permissions": ["read"],
+        "active": True,
+        "auth_version": 5,
+    }
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+
+        response = client.get(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        response_text = response.text
+        assert "password_hash" not in response_text
+        assert "super_secret_hash_value" not in response_text
+        assert "auth_version" not in response_text

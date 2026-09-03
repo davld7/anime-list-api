@@ -314,6 +314,20 @@ def get_total_user_pages(
     }
 
 
+@router.get("/users/{user_id}", response_model=UserResponse)
+def get_user(
+    user_id: ObjectId = Depends(parse_user_object_id),
+    _current_user: dict = Depends(require_permission("admin")),
+):
+    user = get_user_by_id(user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+    return user
+
+
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def create_new_user(
     user_data: UserCreate,
