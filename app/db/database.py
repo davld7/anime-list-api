@@ -16,6 +16,7 @@ client = None
 db = None
 animes_collection = None
 users_collection = None
+refresh_tokens_collection = None
 
 
 # =========================
@@ -24,7 +25,7 @@ users_collection = None
 
 
 def init_database():
-    global client, db, animes_collection, users_collection
+    global client, db, animes_collection, users_collection, refresh_tokens_collection
 
     try:
         client = MongoClient(
@@ -34,6 +35,7 @@ def init_database():
         db = client.get_database(settings.DATABASE_NAME)
         animes_collection = db.get_collection("animes")
         users_collection = db.get_collection("users")
+        refresh_tokens_collection = db.get_collection("refresh_tokens")
 
         logger.info("MongoDB connection initialized.")
 
@@ -61,6 +63,12 @@ def get_users_collection() -> Collection:
     return users_collection
 
 
+def get_refresh_tokens_collection() -> Collection:
+    if refresh_tokens_collection is None:
+        raise RuntimeError("Database not initialized. Check lifespan/init_database.")
+    return refresh_tokens_collection
+
+
 # =========================
 # INDEXES
 # =========================
@@ -75,6 +83,14 @@ def create_indexes():
         users_collection = get_users_collection()
         users_collection.create_index([("username", 1)], unique=True)
         logger.info("Users index ensured: username.")
+
+        refresh_tokens_collection = get_refresh_tokens_collection()
+        refresh_tokens_collection.create_index([("token_hash", 1)], unique=True)
+        logger.info("Refresh tokens index ensured: token_hash (unique).")
+        refresh_tokens_collection.create_index([("expires_at", 1)], expireAfterSeconds=0)
+        logger.info("Refresh tokens index ensured: expires_at (TTL).")
+        refresh_tokens_collection.create_index([("user_id", 1), ("revoked", 1)])
+        logger.info("Refresh tokens index ensured: user_id + revoked.")
 
     except Exception as e:
         logger.warning(f"Index warning: {e}")
