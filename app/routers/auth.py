@@ -1,5 +1,6 @@
 import logging
 import math
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from bson import ObjectId
@@ -7,8 +8,18 @@ from bson.errors import InvalidId
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 from pymongo.errors import DuplicateKeyError
 
+from app.core.config import settings
 from app.core.dependencies import get_current_user, require_permission
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    get_password_hash,
+    hash_refresh_token,
+    verify_password,
+)
+from app.repositories.refresh_token_repository import (
+    create_refresh_token as persist_refresh_token,
+)
 from app.repositories.user_repository import (
     PAGE_SIZE,
     count_active_admins,
@@ -21,6 +32,7 @@ from app.repositories.user_repository import (
     update_user_by_id,
     update_user_by_id_atomic,
 )
+from app.schemas.auth import AuthTokenResponse
 from app.schemas.user import (
     AdminUpdatePasswordRequest,
     ChangePasswordRequest,
@@ -29,7 +41,6 @@ from app.schemas.user import (
     ChangeUsernameResponse,
     LoginRequest,
     ToggleActiveRequest,
-    TokenResponse,
     TotalUsersPages,
     UpdatePermissionsRequest,
     UserCreate,
@@ -48,7 +59,7 @@ def parse_user_object_id(user_id: str = Path(..., min_length=24, max_length=24))
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid ObjectId")
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login", response_model=AuthTokenResponse)
 def login(login_data: LoginRequest):
     user = get_user_by_username(login_data.username)
 
@@ -75,9 +86,26 @@ def login(login_data: LoginRequest):
         "auth_version": user.get("auth_version", 1)
     })
 
+    refresh_token = create_refresh_token()
+    token_hash = hash_refresh_token(refresh_token)
+    expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
+    persist_refresh_token(
+        user_id=user["_id"],
+        token_hash=token_hash,
+        auth_version=user.get("auth_version", 1),
+        expires_at=expires_at,
+    )
+
     logger.info(f"User {user['username']} logged in successfully")
 
-    return TokenResponse(access_token=access_token)
+    return AuthTokenResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+    )
 
 
 @router.get("/me", response_model=UserResponse)
