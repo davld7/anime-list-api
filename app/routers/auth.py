@@ -20,6 +20,10 @@ from app.core.security import (
 from app.repositories.refresh_token_repository import (
     create_refresh_token as persist_refresh_token,
 )
+from app.repositories.refresh_token_repository import (
+    get_refresh_token_by_hash,
+    revoke_refresh_token,
+)
 from app.repositories.user_repository import (
     PAGE_SIZE,
     count_active_admins,
@@ -32,7 +36,7 @@ from app.repositories.user_repository import (
     update_user_by_id,
     update_user_by_id_atomic,
 )
-from app.schemas.auth import AuthTokenResponse
+from app.schemas.auth import AuthTokenResponse, RefreshTokenRequest
 from app.schemas.user import (
     AdminUpdatePasswordRequest,
     ChangePasswordRequest,
@@ -104,6 +108,89 @@ def login(login_data: LoginRequest):
     return AuthTokenResponse(
         access_token=access_token,
         refresh_token=refresh_token,
+        token_type="bearer",
+    )
+
+
+@router.post("/refresh", response_model=AuthTokenResponse)
+def refresh_token(request: RefreshTokenRequest):
+    token_hash = hash_refresh_token(request.refresh_token)
+    record = get_refresh_token_by_hash(token_hash)
+
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    if record["revoked"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    now = datetime.now(timezone.utc)
+    expires_at = record["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at <= now:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    user = get_user_by_id(record["user_id"])
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    if not user.get("active", True):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    if record["auth_version"] != user.get("auth_version", 1):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    # Atomic rotation: only one concurrent request can revoke a token
+    # (revoke filter requires revoked=False). If it returns None, the token
+    # was already used/revoked concurrently.
+    revoked = revoke_refresh_token(token_hash)
+    if revoked is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired refresh token",
+        )
+
+    access_token = create_access_token(data={
+        "sub": user["username"],
+        "auth_version": user.get("auth_version", 1)
+    })
+
+    new_refresh_token = create_refresh_token()
+    new_token_hash = hash_refresh_token(new_refresh_token)
+    new_expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS
+    )
+
+    persist_refresh_token(
+        user_id=user["_id"],
+        token_hash=new_token_hash,
+        auth_version=user.get("auth_version", 1),
+        expires_at=new_expires_at,
+    )
+
+    logger.info(f"Refresh token rotated for user: {user['username']}")
+
+    return AuthTokenResponse(
+        access_token=access_token,
+        refresh_token=new_refresh_token,
         token_type="bearer",
     )
 
