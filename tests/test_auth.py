@@ -156,6 +156,67 @@ def test_login_inactive_user(client):
 
 
 # =========================
+# GET /auth/me TESTS
+# =========================
+def test_get_me_authenticated(client):
+    token = create_access_token(data={"sub": "testuser", "auth_version": 1})
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_get_user:
+        mock_user = {
+            "_id": "507f1f77bcf86cd799439011",
+            "username": "testuser",
+            "password_hash": get_password_hash("password"),
+            "permissions": ["read", "write"],
+            "active": True,
+            "auth_version": 1,
+        }
+        mock_get_user.return_value = mock_user
+
+        response = client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["_id"] == "507f1f77bcf86cd799439011"
+        assert data["username"] == "testuser"
+        assert data["permissions"] == ["read", "write"]
+        assert data["active"] is True
+
+
+def test_get_me_without_authentication(client):
+    response = client.get("/auth/me")
+    assert response.status_code == 401
+
+
+def test_get_me_does_not_expose_sensitive_fields(client):
+    token = create_access_token(data={"sub": "testuser", "auth_version": 1})
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_get_user:
+        mock_user = {
+            "_id": "507f1f77bcf86cd799439011",
+            "username": "testuser",
+            "password_hash": "super_secret_hash_value",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+        mock_get_user.return_value = mock_user
+
+        response = client.get(
+            "/auth/me",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        response_text = response.text
+        assert "password_hash" not in response_text
+        assert "super_secret_hash_value" not in response_text
+        assert "auth_version" not in response_text
+
+
+# =========================
 # PUBLIC ENDPOINT TESTS
 # =========================
 def test_public_endpoint_without_authentication(client):

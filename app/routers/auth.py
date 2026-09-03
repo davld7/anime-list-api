@@ -79,6 +79,11 @@ def login(login_data: LoginRequest):
     return TokenResponse(access_token=access_token)
 
 
+@router.get("/me", response_model=UserResponse)
+def get_me(current_user: Annotated[dict, Depends(get_current_user)]):
+    return current_user
+
+
 @router.put("/username", response_model=ChangeUsernameResponse)
 def change_username(
     request: ChangeUsernameRequest,
