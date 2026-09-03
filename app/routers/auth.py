@@ -14,6 +14,7 @@ from app.repositories.user_repository import (
     count_active_admins,
     count_users,
     create_user,
+    delete_user_by_id,
     get_paginated_users,
     get_user_by_id,
     get_user_by_username,
@@ -356,3 +357,39 @@ def create_new_user(
     )
 
     return created_user
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: ObjectId = Depends(parse_user_object_id),
+    current_user: dict = Depends(require_permission("admin")),
+):
+    target_user = get_user_by_id(user_id)
+    if target_user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    target_is_active_admin = target_user.get("active", True) and "admin" in target_user.get(
+        "permissions", []
+    )
+
+    if target_is_active_admin and count_active_admins() == 1:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cannot delete the last active administrator",
+        )
+
+    deleted = delete_user_by_id(user_id)
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    logger.info(
+        f"User {current_user['username']} deleted user {target_user['username']}"
+    )
+
+    return None

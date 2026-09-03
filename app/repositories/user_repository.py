@@ -83,6 +83,14 @@ def update_user_by_id_atomic(
     return updated_user
 
 
+def delete_user_by_id(id: ObjectId) -> bool:
+    collection = get_users_collection()
+    result = collection.delete_one({"_id": id})
+    if result.deleted_count > 0:
+        logger.info(f"Deleted user with id: {id}")
+    return result.deleted_count > 0
+
+
 def get_paginated_users(
     page: int,
     page_size: int = PAGE_SIZE,

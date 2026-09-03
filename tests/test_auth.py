@@ -2998,3 +2998,293 @@ def test_get_user_by_id_never_exposes_sensitive_fields(client):
         assert "password_hash" not in response_text
         assert "super_secret_hash_value" not in response_text
         assert "auth_version" not in response_text
+
+
+# =========================
+# DELETE USER TESTS
+# =========================
+
+
+def test_admin_can_delete_other_user(client):
+    from bson import ObjectId
+
+    admin = _admin_mock_user()
+    target = _target_mock_user(permissions=["read"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.delete_user_by_id") as mock_delete:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_delete.return_value = True
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 204
+        mock_delete.assert_called_once_with(ObjectId(TARGET_USER_ID))
+
+
+def test_delete_user_without_authentication(client):
+    response = client.delete(
+        f"/auth/users/{TARGET_USER_ID}",
+    )
+
+    assert response.status_code == 401
+
+
+def test_delete_user_without_admin_permission(client):
+    non_admin = _admin_mock_user(permissions=["read", "write"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = non_admin
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 403
+
+
+def test_delete_user_not_found(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = None
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 404
+
+
+def test_delete_user_invalid_object_id(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.delete(
+            "/auth/users/zzzzzzzzzzzzzzzzzzzzzzzz",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 400
+
+
+def test_delete_user_short_object_id(client):
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = _admin_mock_user()
+
+        response = client.delete(
+            "/auth/users/abc",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 422
+
+
+def test_delete_non_admin_user_allowed(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(permissions=["read"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.delete_user_by_id") as mock_delete:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_delete.return_value = True
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 204
+
+
+def test_delete_inactive_admin_allowed_when_other_active_admins_exist(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=False, permissions=["read", "admin"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.count_active_admins") as mock_count, \
+         patch("app.routers.auth.delete_user_by_id") as mock_delete:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_count.return_value = 2
+        mock_delete.return_value = True
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 204
+
+
+def test_delete_last_active_admin_returns_409(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=True, permissions=["read", "admin"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.count_active_admins") as mock_count:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_count.return_value = 1
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 409
+
+
+def test_delete_active_admin_allowed_when_another_active_admin_exists(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(active=True, permissions=["read", "admin"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.count_active_admins") as mock_count, \
+         patch("app.routers.auth.delete_user_by_id") as mock_delete:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_count.return_value = 2
+        mock_delete.return_value = True
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 204
+
+
+def test_admin_can_delete_self_when_another_active_admin_exists(client):
+    from bson import ObjectId
+
+    from app.repositories.user_repository import (
+        create_user,
+        get_user_by_username,
+        get_users_collection,
+    )
+
+    collection = get_users_collection()
+    collection.delete_many({"username": {"$in": ["admin_self_del", "admin_other_del"]}})
+
+    admin = create_user({
+        "username": "admin_self_del",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+    other_admin = create_user({
+        "username": "admin_other_del",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+
+    try:
+        admin_token = create_access_token(
+            data={"sub": "admin_self_del", "auth_version": 1}
+        )
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.delete(
+            f"/auth/users/{admin['_id']}",
+            headers=admin_headers,
+        )
+        assert response.status_code == 204
+
+        from app.repositories.user_repository import get_user_by_id
+        deleted_user = get_user_by_id(ObjectId(admin["_id"]))
+        assert deleted_user is None
+
+        remaining_admin = get_user_by_username("admin_other_del")
+        assert remaining_admin is not None
+    finally:
+        collection = get_users_collection()
+        collection.delete_one({"_id": ObjectId(admin["_id"])})
+        collection.delete_one({"_id": ObjectId(other_admin["_id"])})
+
+
+def test_admin_cannot_delete_self_when_last_active_admin(client):
+    from bson import ObjectId
+
+    from app.repositories.user_repository import (
+        create_user,
+        get_user_by_id,
+        get_users_collection,
+    )
+
+    collection = get_users_collection()
+    collection.delete_many({"username": "admin_last_self"})
+    collection.delete_many({
+        "permissions": "admin", "active": True,
+        "username": {"$ne": "admin_last_self"},
+    })
+
+    admin = create_user({
+        "username": "admin_last_self",
+        "password_hash": get_password_hash("password"),
+        "permissions": ["read", "write", "admin"],
+        "active": True,
+        "auth_version": 1,
+    })
+
+    try:
+        admin_token = create_access_token(
+            data={"sub": "admin_last_self", "auth_version": 1}
+        )
+        admin_headers = {"Authorization": f"Bearer {admin_token}"}
+
+        response = client.delete(
+            f"/auth/users/{admin['_id']}",
+            headers=admin_headers,
+        )
+        assert response.status_code == 409
+
+        still_exists = get_user_by_id(ObjectId(admin["_id"]))
+        assert still_exists is not None
+    finally:
+        collection = get_users_collection()
+        collection.delete_one({"_id": ObjectId(admin["_id"])})
+
+
+def test_delete_user_returns_no_content(client):
+    admin = _admin_mock_user()
+    target = _target_mock_user(permissions=["read"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_user_by_id") as mock_get_by_id, \
+         patch("app.routers.auth.delete_user_by_id") as mock_delete:
+
+        mock_current.return_value = admin
+        mock_get_by_id.return_value = target
+        mock_delete.return_value = True
+
+        response = client.delete(
+            f"/auth/users/{TARGET_USER_ID}",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 204
+        assert response.text == ""
