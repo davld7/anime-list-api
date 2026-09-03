@@ -2528,3 +2528,304 @@ def test_create_user_response_never_exposes_password_hash(client):
         response_text = response.text
         assert "password_hash" not in response_text
         assert "should_not_appear" not in response_text
+
+
+# =========================
+# LIST USERS TESTS
+# =========================
+
+def test_list_users_requires_admin_permission(client):
+    non_admin = _admin_mock_user(permissions=["read", "write"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = non_admin
+
+        response = client.get(
+            "/auth/users",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 403
+
+
+def test_list_users_requires_authentication(client):
+    response = client.get("/auth/users")
+    assert response.status_code == 401
+
+
+def test_list_users_returns_paginated_results(client):
+    admin = _admin_mock_user()
+    mock_users = [
+        {
+            "_id": f"507f1f77bcf86cd7994390{i:02d}",
+            "username": f"user_{i}",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+        for i in range(3)
+    ]
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = mock_users
+
+        response = client.get(
+            "/auth/users?page=1",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 3
+        assert data[0]["username"] == "user_0"
+        assert data[1]["username"] == "user_1"
+        assert data[2]["username"] == "user_2"
+
+
+def test_list_users_page_2(client):
+    admin = _admin_mock_user()
+    mock_users = [
+        {
+            "_id": "507f1f77bcf86cd799439010",
+            "username": "page2_user",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+    ]
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = mock_users
+
+        response = client.get(
+            "/auth/users?page=2",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        mock_get_users.assert_called_once_with(2, 10, {})
+
+
+def test_list_users_empty_results(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = []
+
+        response = client.get(
+            "/auth/users?page=1",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert response.json() == []
+
+
+def test_list_users_active_filter_true(client):
+    admin = _admin_mock_user()
+    mock_users = [
+        {
+            "_id": "507f1f77bcf86cd799439010",
+            "username": "active_user",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+    ]
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = mock_users
+
+        response = client.get(
+            "/auth/users?active=true",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        mock_get_users.assert_called_once_with(1, 10, {"active": True})
+
+
+def test_list_users_active_filter_false(client):
+    admin = _admin_mock_user()
+    mock_users = [
+        {
+            "_id": "507f1f77bcf86cd799439010",
+            "username": "inactive_user",
+            "permissions": ["read"],
+            "active": False,
+            "auth_version": 1,
+        }
+    ]
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = mock_users
+
+        response = client.get(
+            "/auth/users?active=false",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        assert len(response.json()) == 1
+        mock_get_users.assert_called_once_with(1, 10, {"active": False})
+
+
+def test_list_users_never_exposes_password_hash(client):
+    admin = _admin_mock_user()
+    mock_users = [
+        {
+            "_id": "507f1f77bcf86cd799439010",
+            "username": "user_with_hash",
+            "password_hash": "super_secret_hash_value",
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+    ]
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = mock_users
+
+        response = client.get(
+            "/auth/users",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        response_text = response.text
+        assert "password_hash" not in response_text
+        assert "super_secret_hash_value" not in response_text
+
+
+def test_list_users_response_contains_expected_fields(client):
+    admin = _admin_mock_user()
+    mock_users = [
+        {
+            "_id": "507f1f77bcf86cd799439010",
+            "username": "test_user",
+            "permissions": ["read", "write", "admin"],
+            "active": True,
+            "auth_version": 3,
+        }
+    ]
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.get_paginated_users") as mock_get_users:
+
+        mock_current.return_value = admin
+        mock_get_users.return_value = mock_users
+
+        response = client.get(
+            "/auth/users",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()[0]
+        assert data["_id"] == "507f1f77bcf86cd799439010"
+        assert data["username"] == "test_user"
+        assert data["permissions"] == ["read", "write", "admin"]
+        assert data["active"] is True
+        assert "password" not in data
+
+
+# =========================
+# GET USER PAGES TESTS
+# =========================
+
+def test_get_user_pages_requires_admin_permission(client):
+    non_admin = _admin_mock_user(permissions=["read", "write"])
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current:
+        mock_current.return_value = non_admin
+
+        response = client.get(
+            "/auth/users/pages",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 403
+
+
+def test_get_user_pages_requires_authentication(client):
+    response = client.get("/auth/users/pages")
+    assert response.status_code == 401
+
+
+def test_get_user_pages_returns_totals(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.count_users") as mock_count:
+
+        mock_current.return_value = admin
+        mock_count.return_value = 25
+
+        response = client.get(
+            "/auth/users/pages",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_users"] == 25
+        assert data["total_pages"] == 3
+
+
+def test_get_user_pages_zero_users(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.count_users") as mock_count:
+
+        mock_current.return_value = admin
+        mock_count.return_value = 0
+
+        response = client.get(
+            "/auth/users/pages",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total_users"] == 0
+        assert data["total_pages"] == 0
+
+
+def test_get_user_pages_active_filter(client):
+    admin = _admin_mock_user()
+
+    with patch("app.core.dependencies.get_user_by_username") as mock_current, \
+         patch("app.routers.auth.count_users") as mock_count:
+
+        mock_current.return_value = admin
+        mock_count.return_value = 10
+
+        response = client.get(
+            "/auth/users/pages?active=true",
+            headers=_admin_mock_headers(),
+        )
+
+        assert response.status_code == 200
+        mock_count.assert_called_once_with({"active": True})

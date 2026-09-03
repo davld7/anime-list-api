@@ -97,3 +97,8 @@ class UpdatePermissionsRequest(BaseModel):
                 raise ValueError(f"Duplicate permission: '{perm}'")
             seen.add(perm)
         return v
+
+
+class TotalUsersPages(BaseModel):
+    total_users: int = Field(..., ge=0, description="Total user count.", examples=[5])
+    total_pages: int = Field(..., ge=0, description="Total pages available.", examples=[1])

@@ -5,6 +5,8 @@ from bson import ObjectId
 
 from app.db.database import get_users_collection
 
+PAGE_SIZE = 10
+
 logger = logging.getLogger("anime-api.repository")
 
 
@@ -31,9 +33,9 @@ def create_user(data: dict[str, Any]) -> dict[str, Any]:
     return data
 
 
-def count_users() -> int:
+def count_users(filter_query: dict[str, Any] | None = None) -> int:
     collection = get_users_collection()
-    return collection.count_documents({})
+    return collection.count_documents(filter_query or {})
 
 
 def count_active_admins() -> int:
@@ -79,3 +81,15 @@ def update_user_by_id_atomic(
     updated_user = collection.find_one({"_id": id})
     logger.info(f"Updated user with id: {id} (atomic)")
     return updated_user
+
+
+def get_paginated_users(
+    page: int,
+    page_size: int = PAGE_SIZE,
+    filter_query: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    collection = get_users_collection()
+    skip = (page - 1) * page_size
+    return list(
+        collection.find(filter_query or {}).sort("username", 1).skip(skip).limit(page_size)
+    )

@@ -1,16 +1,20 @@
 import logging
+import math
 from typing import Annotated
 
 from bson import ObjectId
 from bson.errors import InvalidId
-from fastapi import APIRouter, Body, Depends, HTTPException, Path, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
 from pymongo.errors import DuplicateKeyError
 
 from app.core.dependencies import get_current_user, require_permission
 from app.core.security import create_access_token, get_password_hash, verify_password
 from app.repositories.user_repository import (
+    PAGE_SIZE,
     count_active_admins,
+    count_users,
     create_user,
+    get_paginated_users,
     get_user_by_id,
     get_user_by_username,
     update_user_by_id,
@@ -25,6 +29,7 @@ from app.schemas.user import (
     LoginRequest,
     ToggleActiveRequest,
     TokenResponse,
+    TotalUsersPages,
     UpdatePermissionsRequest,
     UserCreate,
     UserResponse,
@@ -273,6 +278,35 @@ def toggle_user_active(
     )
 
     return updated_user
+
+
+@router.get("/users", response_model=list[UserResponse])
+def list_users(
+    page: int = Query(1, ge=1),
+    active: bool | None = Query(None),
+    _current_user: dict = Depends(require_permission("admin")),
+):
+    filter_query: dict = {}
+    if active is not None:
+        filter_query["active"] = active
+
+    return get_paginated_users(page, PAGE_SIZE, filter_query)
+
+
+@router.get("/users/pages", response_model=TotalUsersPages)
+def get_total_user_pages(
+    active: bool | None = Query(None),
+    _current_user: dict = Depends(require_permission("admin")),
+):
+    filter_query: dict = {}
+    if active is not None:
+        filter_query["active"] = active
+
+    total = count_users(filter_query)
+    return {
+        "total_users": total,
+        "total_pages": math.ceil(total / PAGE_SIZE) if total > 0 else 0,
+    }
 
 
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
