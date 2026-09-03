@@ -195,6 +195,14 @@ def refresh_token(request: RefreshTokenRequest):
     )
 
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(request: RefreshTokenRequest):
+    token_hash = hash_refresh_token(request.refresh_token)
+    revoke_refresh_token(token_hash)
+    logger.info("Refresh token revoked during logout")
+    return None
+
+
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: Annotated[dict, Depends(get_current_user)]):
     return current_user
