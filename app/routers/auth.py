@@ -231,7 +231,11 @@ def change_username(
     user_id = ObjectId(current_user["_id"])
 
     try:
-        updated_user = update_user_by_id(user_id, {"username": request.new_username})
+        updated_user = update_user_by_id_atomic(
+            user_id,
+            {"username": request.new_username},
+            {"auth_version": 1},
+        )
 
         if updated_user is None:
             raise HTTPException(

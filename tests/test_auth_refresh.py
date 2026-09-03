@@ -21,7 +21,7 @@ from app.repositories.refresh_token_repository import (
     get_refresh_token_by_hash,
     revoke_refresh_token,
 )
-from app.repositories.user_repository import create_user
+from app.repositories.user_repository import create_user, get_user_by_username
 from main import app
 
 
@@ -236,6 +236,32 @@ def test_multiple_sessions_refresh_only_rotated_one(client):
             get_refresh_token_by_hash(hash_refresh_token(tokens_a["refresh_token"]))["revoked"]
             is True
         )
+    finally:
+        _cleanup_user(user["_id"])
+
+
+def test_refresh_invalid_after_username_change(client):
+    user = _create_user("refresh_username_change_user")
+    try:
+        tokens = _login(client, "refresh_username_change_user")
+        old_refresh = tokens["refresh_token"]
+
+        response = client.put(
+            "/auth/username",
+            json={"new_username": "refresh_username_change_user2"},
+            headers={"Authorization": f"Bearer {tokens['access_token']}"},
+        )
+        assert response.status_code == 200
+
+        changed = get_user_by_username("refresh_username_change_user2")
+        assert changed is not None
+        assert changed["auth_version"] == 2
+
+        refresh_response = client.post(
+            "/auth/refresh",
+            json={"refresh_token": old_refresh},
+        )
+        assert refresh_response.status_code == 401
     finally:
         _cleanup_user(user["_id"])
 
