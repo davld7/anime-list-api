@@ -34,6 +34,3 @@ wheels/
 # Operating System garbage files
 .DS_Store
 Thumbs.db
-
-# Custom tools
-ai_project_context_builder.py
