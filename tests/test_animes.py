@@ -52,7 +52,7 @@ def test_health_check(client):
 # =========================
 def test_get_paginated_animes(client, auth_headers, mock_authenticated_user):
     with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.repositories.anime_repository.get_paginated_animes') as mock_get_paginated:
+         patch('app.routers.animes.get_paginated_animes') as mock_get_paginated:
 
         mock_get_user.return_value = mock_authenticated_user
         mock_get_paginated.return_value = []
@@ -68,7 +68,7 @@ def test_get_paginated_animes(client, auth_headers, mock_authenticated_user):
 # =========================
 def test_get_total_pages(client, auth_headers, mock_authenticated_user):
     with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.repositories.anime_repository.count_animes') as mock_count:
+         patch('app.routers.animes.count_animes') as mock_count:
 
         mock_get_user.return_value = mock_authenticated_user
         mock_count.return_value = 10
@@ -109,7 +109,7 @@ def test_get_anime_by_id_success(client, auth_headers, mock_authenticated_user):
 
 def test_get_anime_by_id_not_found(client, auth_headers, mock_authenticated_user):
     with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.repositories.anime_repository.get_anime_by_id') as mock_get_by_id:
+         patch('app.routers.animes.get_anime_by_id') as mock_get_by_id:
 
         mock_get_user.return_value = mock_authenticated_user
         mock_get_by_id.return_value = None
@@ -152,7 +152,7 @@ def test_get_anime_by_name_success(client, auth_headers, mock_authenticated_user
 
 def test_get_anime_by_name_not_found(client, auth_headers, mock_authenticated_user):
     with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.repositories.anime_repository.get_anime_by_name') as mock_get_by_name:
+         patch('app.routers.animes.get_anime_by_name') as mock_get_by_name:
 
         mock_get_user.return_value = mock_authenticated_user
         mock_get_by_name.return_value = None

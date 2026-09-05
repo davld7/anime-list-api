@@ -653,8 +653,9 @@ def test_user_without_auth_version_uses_fallback(client):
         }
         mock_get_user.return_value = mock_user
 
-        response = client.get("/animes/", headers={"Authorization": f"Bearer {token}"})
+        response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
         assert response.status_code == 200
+        assert response.json()["username"] == "testuser_no_version"
 
     # Clean up
     from app.repositories.user_repository import get_users_collection
