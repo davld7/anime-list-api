@@ -1,4 +1,6 @@
-fastapi==0.141.1
-uvicorn==0.52.4
-pymongo==4.17.0
+fastapi[standard]==0.141.1
 pydantic-settings==2.15.0
+pymongo==4.18.0
+uvicorn==0.52.4
+python-jose[cryptography]==3.5.0
+passlib[argon2]==1.7.4
