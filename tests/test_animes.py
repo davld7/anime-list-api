@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
+from pymongo.errors import DuplicateKeyError
 
 os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
 
@@ -222,3 +223,62 @@ Parrafo dos.",
         assert call_args["description"] == "Parrafo uno.\n\nParrafo dos."
         assert call_args["name"] == "Test Normalization"
         assert call_args["episodes"] == 1
+
+
+# =========================
+# DUPLICATE KEY CONFLICT TESTS
+# =========================
+def test_create_anime_duplicate_key_returns_409(
+    client, auth_headers, mock_authenticated_user
+):
+    """Test that a DuplicateKeyError during insert returns 409 Conflict."""
+    with patch('app.routers.animes.get_anime_by_name') as mock_get_by_name, \
+         patch('app.routers.animes.create_anime') as mock_create, \
+         patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_get_by_name.return_value = None
+        mock_create.side_effect = DuplicateKeyError("duplicate key error")
+
+        response = client.post(
+            "/animes/",
+            json={
+                "name": "Race Condition Anime",
+                "description": "Test",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/anime.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Anime already exists."
+
+
+def test_update_anime_duplicate_key_returns_409(
+    client, auth_headers, mock_authenticated_user
+):
+    """Test that a DuplicateKeyError during update returns 409 Conflict."""
+    with patch('app.routers.animes.update_anime') as mock_update, \
+         patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_update.side_effect = DuplicateKeyError("duplicate key error")
+
+        response = client.put(
+            "/animes/642a63402537c1f25e5f20fd",
+            json={
+                "name": "Already Existing Name",
+                "description": "Test",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/anime.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Anime already exists."

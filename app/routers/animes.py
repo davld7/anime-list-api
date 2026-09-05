@@ -3,6 +3,7 @@ import math
 from bson import ObjectId
 from bson.errors import InvalidId
 from fastapi import APIRouter, Body, Depends, HTTPException, Path, Query, status
+from pymongo.errors import DuplicateKeyError
 
 from app.core.custom_route import JSONRepairRoute
 from app.core.dependencies import require_permission
@@ -96,7 +97,13 @@ def create_anime_endpoint(
     if get_anime_by_name(anime.name):
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Anime already exists.")
     data = anime.model_dump()
-    return create_anime(data)
+    try:
+        return create_anime(data)
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Anime already exists.",
+        ) from None
 
 
 # =========================
@@ -109,7 +116,13 @@ def update_anime_endpoint(
     _current_user: dict = Depends(require_permission("write")),
 ):
     data = anime.model_dump()
-    updated = update_anime(obj_id, data)
+    try:
+        updated = update_anime(obj_id, data)
+    except DuplicateKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Anime already exists.",
+        ) from None
     if not updated:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anime not found.")
     return updated
