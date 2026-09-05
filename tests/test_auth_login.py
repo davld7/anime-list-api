@@ -79,6 +79,7 @@ def test_login_user_not_found(client):
         after = refresh_collection.count_documents({})
 
         assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid username or password"
         assert after == before
 
 
@@ -111,6 +112,7 @@ def test_login_incorrect_password(client):
         )
 
         assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid username or password"
         assert (
             refresh_collection.count_documents({"user_id": ObjectId(created_user["_id"])}) == 0
         )
@@ -147,6 +149,7 @@ def test_login_inactive_user(client):
         )
 
         assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid username or password"
         assert (
             refresh_collection.count_documents({"user_id": ObjectId(created_user["_id"])}) == 0
         )
@@ -157,3 +160,26 @@ def test_login_inactive_user(client):
 # =========================
 # GET /auth/me TESTS
 # =========================
+
+# =========================
+# DUMMY HASH TIMING TESTS
+# =========================
+
+
+def test_login_user_not_found_still_verifies_dummy_password(client):
+    from app.routers.auth import DUMMY_PASSWORD_HASH
+
+    with patch('app.routers.auth.get_user_by_username') as mock_get_user, \
+         patch('app.routers.auth.verify_password') as mock_verify:
+
+        mock_get_user.return_value = None
+        mock_verify.return_value = False
+
+        response = client.post(
+            "/auth/login",
+            json={"username": "ghost_user", "password": "password"}
+        )
+
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid username or password"
+        mock_verify.assert_called_once_with("password", DUMMY_PASSWORD_HASH)

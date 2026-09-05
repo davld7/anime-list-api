@@ -55,6 +55,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 logger = logging.getLogger("anime-api.auth")
 
+DUMMY_PASSWORD_HASH = get_password_hash("dummy_password_for_login_timing_equalization")
+
 
 def parse_user_object_id(user_id: str = Path(..., min_length=24, max_length=24)) -> ObjectId:
     try:
@@ -68,6 +70,7 @@ def login(login_data: LoginRequest):
     user = get_user_by_username(login_data.username)
 
     if user is None:
+        verify_password(login_data.password, DUMMY_PASSWORD_HASH)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
@@ -82,7 +85,7 @@ def login(login_data: LoginRequest):
     if not user.get("active", True):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User is inactive",
+            detail="Invalid username or password",
         )
 
     access_token = create_access_token(data={
