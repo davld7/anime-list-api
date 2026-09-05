@@ -1,5 +1,13 @@
 # Anime List API
 
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141.0-005571?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![JWT](https://img.shields.io/badge/JWT-HS256-000000?style=flat&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
+[![uv](https://img.shields.io/badge/uv-0.5.0-EBCE4B?style=flat&logo=uv&logoColor=black)](https://docs.astral.sh/uv/)
+[![pytest](https://img.shields.io/badge/pytest-9.1.1-0A9EDC?style=flat&logo=pytest&logoColor=white)](https://docs.pytest.org/)
+[![Ruff](https://img.shields.io/badge/ruff-0.16.4-00599C?style=flat&logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
+
 REST API modular para gestión de catálogos de anime, construida con FastAPI y MongoDB.
 
 ## Stack
