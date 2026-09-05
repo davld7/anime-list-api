@@ -25,6 +25,8 @@ JWT_ACCESS_TOKEN_EXPIRE_MINUTES=30
 JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
 ```
 
+Usa `.env.example` como plantilla para crear tu propio `.env`.
+
 ## Quick Start
 ```powershell
 uv sync
