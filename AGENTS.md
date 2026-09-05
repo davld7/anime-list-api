@@ -9,7 +9,7 @@
 - **Ejecutar servidor**: `uvicorn main:app --reload`
 - **Tests**: `pytest`
 - **Lint/fix**: `ruff check --fix .`
-- **CLI admin**: `python -m app.cli.manage_admin <status|create|reset-password>`
+- **CLI de recuperación de admin**: `python -m app.cli.manage_admin <status|create|reset-password>`
 - **No usar**: `pip`, `venv` manual, `requirements.txt` como fuente de verdad (solo referencia legacy).
 
 ## Seguridad y configuración (no negociables)
@@ -73,7 +73,7 @@ app/
 
 ## Git
 
-- **Rama principal**: `master` (la antigua `devin` fue integrada y eliminada).
+- **Rama principal**: `master`.
 - **No commits automáticos** — deja cambios listos para revisión.
 - **No push automático** — espera autorización explícita.
 - **No descartes cambios** del usuario sin autorización.
