@@ -282,3 +282,244 @@ def test_update_anime_duplicate_key_returns_409(
 
         assert response.status_code == 409
         assert response.json()["detail"] == "Anime already exists."
+
+
+# =========================
+# UPDATE ANIME TESTS
+# =========================
+
+
+def test_update_anime_success(client, auth_headers, mock_authenticated_user):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.update_anime') as mock_update:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_update.return_value = {
+            "_id": "642a63402537c1f25e5f20fd",
+            "name": "Updated Anime",
+            "description": "Updated description",
+            "episodes": 24,
+            "season": "Winter 2025",
+            "genres": ["Action", "Drama"],
+            "image_url": "https://example.com/updated.jpg",
+        }
+
+        response = client.put(
+            "/animes/642a63402537c1f25e5f20fd",
+            json={
+                "name": "Updated Anime",
+                "description": "Updated description",
+                "episodes": 24,
+                "season": "Winter 2025",
+                "genres": ["Action", "Drama"],
+                "image_url": "https://example.com/updated.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["_id"] == "642a63402537c1f25e5f20fd"
+        assert data["name"] == "Updated Anime"
+        assert data["episodes"] == 24
+        assert data["genres"] == ["Action", "Drama"]
+
+        from bson import ObjectId
+        mock_update.assert_called_once_with(
+            ObjectId("642a63402537c1f25e5f20fd"),
+            {
+                "name": "Updated Anime",
+                "description": "Updated description",
+                "episodes": 24,
+                "season": "Winter 2025",
+                "genres": ["Action", "Drama"],
+                "image_url": "https://example.com/updated.jpg",
+            },
+        )
+
+
+def test_update_anime_not_found(client, auth_headers, mock_authenticated_user):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.update_anime') as mock_update:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_update.return_value = None
+
+        response = client.put(
+            "/animes/642a63402537c1f25e5f20fd",
+            json={
+                "name": "Ghost Anime",
+                "description": "Test",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/anime.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Anime not found."
+
+
+def test_update_anime_without_write_permission(client, auth_headers):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.update_anime') as mock_update:
+
+        mock_get_user.return_value = {
+            "_id": "507f1f77bcf86cd799439011",
+            "username": "testuser",
+            "password_hash": get_password_hash("password"),
+            "permissions": ["read"],
+            "active": True,
+            "auth_version": 1,
+        }
+
+        response = client.put(
+            "/animes/642a63402537c1f25e5f20fd",
+            json={
+                "name": "No Permission Anime",
+                "description": "Test",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/anime.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Permission 'write' required"
+        mock_update.assert_not_called()
+
+
+def test_update_anime_validation_error_returns_422(client, auth_headers, mock_authenticated_user):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.update_anime') as mock_update:
+
+        mock_get_user.return_value = mock_authenticated_user
+
+        response = client.put(
+            "/animes/642a63402537c1f25e5f20fd",
+            json={
+                "name": "",
+                "description": "Test",
+                "episodes": 12,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/anime.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 422
+        mock_update.assert_not_called()
+
+
+# =========================
+# DELETE ANIME TESTS
+# =========================
+
+
+def test_delete_anime_success(client, auth_headers, mock_authenticated_user):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.delete_anime') as mock_delete:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_delete.return_value = {
+            "_id": "642a63402537c1f25e5f20fd",
+            "name": "To Be Deleted",
+            "description": "Test",
+            "episodes": 12,
+            "season": "Summer 2024",
+            "genres": ["Action"],
+            "image_url": "https://example.com/anime.jpg",
+        }
+
+        response = client.delete("/animes/642a63402537c1f25e5f20fd", headers=auth_headers)
+
+        assert response.status_code == 204
+        assert response.text == ""
+
+        from bson import ObjectId
+        mock_delete.assert_called_once_with(ObjectId("642a63402537c1f25e5f20fd"))
+
+
+def test_delete_anime_without_admin_permission(client, auth_headers):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.delete_anime') as mock_delete:
+
+        mock_get_user.return_value = {
+            "_id": "507f1f77bcf86cd799439011",
+            "username": "testuser",
+            "password_hash": get_password_hash("password"),
+            "permissions": ["read", "write"],
+            "active": True,
+            "auth_version": 1,
+        }
+
+        response = client.delete("/animes/642a63402537c1f25e5f20fd", headers=auth_headers)
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Permission 'admin' required"
+        mock_delete.assert_not_called()
+
+
+def test_delete_anime_not_found(client, auth_headers, mock_authenticated_user):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.delete_anime') as mock_delete:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_delete.return_value = None
+
+        response = client.delete("/animes/642a63402537c1f25e5f20fd", headers=auth_headers)
+
+        assert response.status_code == 404
+        assert response.json()["detail"] == "Anime not found."
+
+
+# =========================
+# OBJECT ID VALIDATION TESTS
+# =========================
+
+
+def test_get_anime_by_id_invalid_object_id_returns_400(
+    client, auth_headers, mock_authenticated_user
+):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
+        mock_get_user.return_value = mock_authenticated_user
+
+        response = client.get("/animes/by-id/zzzzzzzzzzzzzzzzzzzzzzzz", headers=auth_headers)
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Invalid ObjectId"
+
+
+# =========================
+# CREATE ANIME VALIDATION TESTS
+# =========================
+
+
+def test_create_anime_validation_error_returns_422(client, auth_headers, mock_authenticated_user):
+    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
+         patch('app.routers.animes.get_anime_by_name') as mock_get_by_name, \
+         patch('app.routers.animes.create_anime') as mock_create:
+
+        mock_get_user.return_value = mock_authenticated_user
+        mock_get_by_name.return_value = None
+
+        response = client.post(
+            "/animes/",
+            json={
+                "name": "Invalid Anime",
+                "description": "Test",
+                "episodes": -1,
+                "season": "Summer 2024",
+                "genres": ["Action"],
+                "image_url": "https://example.com/anime.jpg",
+            },
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 422
+        mock_get_by_name.assert_not_called()
+        mock_create.assert_not_called()
