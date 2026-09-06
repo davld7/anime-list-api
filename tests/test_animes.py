@@ -47,14 +47,11 @@ def test_health_check(client):
 # =========================
 # GET ANIMES PAGINATED TEST
 # =========================
-def test_get_paginated_animes(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.routers.animes.get_paginated_animes') as mock_get_paginated:
-
-        mock_get_user.return_value = mock_authenticated_user
+def test_get_paginated_animes(client):
+    with patch('app.routers.animes.get_paginated_animes') as mock_get_paginated:
         mock_get_paginated.return_value = []
 
-        response = client.get("/animes/page?page=1", headers=auth_headers)
+        response = client.get("/animes/page?page=1")
         assert response.status_code == 200
         data = response.json()
         assert isinstance(data, list)
@@ -63,14 +60,11 @@ def test_get_paginated_animes(client, auth_headers, mock_authenticated_user):
 # =========================
 # GET TOTAL PAGES TEST
 # =========================
-def test_get_total_pages(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.routers.animes.count_animes') as mock_count:
-
-        mock_get_user.return_value = mock_authenticated_user
+def test_get_total_pages(client):
+    with patch('app.routers.animes.count_animes') as mock_count:
         mock_count.return_value = 10
 
-        response = client.get("/animes/pages", headers=auth_headers)
+        response = client.get("/animes/pages")
         assert response.status_code == 200
         data = response.json()
         assert "total_animes" in data
@@ -82,11 +76,8 @@ def test_get_total_pages(client, auth_headers, mock_authenticated_user):
 # =========================
 # GET BY ID TEST
 # =========================
-def test_get_anime_by_id_success(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.routers.animes.get_anime_by_id') as mock_get_by_id:
-
-        mock_get_user.return_value = mock_authenticated_user
+def test_get_anime_by_id_success(client):
+    with patch('app.routers.animes.get_anime_by_id') as mock_get_by_id:
         mock_get_by_id.return_value = {
             "_id": "642a63402537c1f25e5f20fd",
             "name": "Test Anime",
@@ -97,40 +88,31 @@ def test_get_anime_by_id_success(client, auth_headers, mock_authenticated_user):
             "image_url": "https://example.com/image.jpg"
         }
 
-        response = client.get("/animes/by-id/642a63402537c1f25e5f20fd", headers=auth_headers)
+        response = client.get("/animes/by-id/642a63402537c1f25e5f20fd")
         assert response.status_code == 200
         data = response.json()
         assert data["_id"] == "642a63402537c1f25e5f20fd"
         assert "name" in data
 
 
-def test_get_anime_by_id_not_found(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.routers.animes.get_anime_by_id') as mock_get_by_id:
-
-        mock_get_user.return_value = mock_authenticated_user
+def test_get_anime_by_id_not_found(client):
+    with patch('app.routers.animes.get_anime_by_id') as mock_get_by_id:
         mock_get_by_id.return_value = None
 
-        response = client.get("/animes/by-id/123456789012345678901234", headers=auth_headers)
+        response = client.get("/animes/by-id/123456789012345678901234")
         assert response.status_code == 404
 
 
-def test_get_anime_by_id_invalid_format(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
-        mock_get_user.return_value = mock_authenticated_user
-
-        response = client.get("/animes/by-id/invalid-id", headers=auth_headers)
-        assert response.status_code == 422
+def test_get_anime_by_id_invalid_format(client):
+    response = client.get("/animes/by-id/invalid-id")
+    assert response.status_code == 422
 
 
 # =========================
 # GET BY NAME TEST
 # =========================
-def test_get_anime_by_name_success(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.routers.animes.get_anime_by_name') as mock_get_by_name:
-
-        mock_get_user.return_value = mock_authenticated_user
+def test_get_anime_by_name_success(client):
+    with patch('app.routers.animes.get_anime_by_name') as mock_get_by_name:
         mock_get_by_name.return_value = {
             "_id": "642a63402537c1f25e5f20fd",
             "name": "86 EIGHTY-SIX",
@@ -141,20 +123,17 @@ def test_get_anime_by_name_success(client, auth_headers, mock_authenticated_user
             "image_url": "https://example.com/image.jpg"
         }
 
-        response = client.get("/animes/by-name/86 EIGHTY-SIX", headers=auth_headers)
+        response = client.get("/animes/by-name/86 EIGHTY-SIX")
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "86 EIGHTY-SIX"
 
 
-def test_get_anime_by_name_not_found(client, auth_headers, mock_authenticated_user):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user, \
-         patch('app.routers.animes.get_anime_by_name') as mock_get_by_name:
-
-        mock_get_user.return_value = mock_authenticated_user
+def test_get_anime_by_name_not_found(client):
+    with patch('app.routers.animes.get_anime_by_name') as mock_get_by_name:
         mock_get_by_name.return_value = None
 
-        response = client.get("/animes/by-name/nonexistent_anime", headers=auth_headers)
+        response = client.get("/animes/by-name/nonexistent_anime")
         assert response.status_code == 404
 
 
@@ -480,15 +459,10 @@ def test_delete_anime_not_found(client, auth_headers, mock_authenticated_user):
 # =========================
 
 
-def test_get_anime_by_id_invalid_object_id_returns_400(
-    client, auth_headers, mock_authenticated_user
-):
-    with patch('app.core.dependencies.get_user_by_username') as mock_get_user:
-        mock_get_user.return_value = mock_authenticated_user
-
-        response = client.get("/animes/by-id/zzzzzzzzzzzzzzzzzzzzzzzz", headers=auth_headers)
-        assert response.status_code == 400
-        assert response.json()["detail"] == "Invalid ObjectId"
+def test_get_anime_by_id_invalid_object_id_returns_400(client):
+    response = client.get("/animes/by-id/zzzzzzzzzzzzzzzzzzzzzzzz")
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Invalid ObjectId"
 
 
 # =========================
