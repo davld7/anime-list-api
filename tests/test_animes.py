@@ -44,6 +44,18 @@ def test_health_check(client):
     assert "database" in data
 
 
+def test_health_check_service_unavailable(client):
+    with patch('main.check_database_connection') as mock_check:
+        mock_check.return_value = False
+
+        response = client.get("/health")
+
+        assert response.status_code == 503
+        assert (
+            response.json()["detail"] == "Service unavailable - database connection failed"
+        )
+
+
 # =========================
 # GET ANIMES PAGINATED TEST
 # =========================
