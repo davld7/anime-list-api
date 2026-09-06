@@ -11,7 +11,6 @@ os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
 from app.db.database import get_refresh_tokens_collection, init_database
 from app.repositories.refresh_token_repository import (
     create_refresh_token,
-    delete_refresh_tokens_by_user_id,
     get_refresh_token_by_hash,
     revoke_refresh_token,
 )
@@ -127,40 +126,6 @@ class TestRefreshTokenRepository:
     def test_revoke_refresh_token_not_found(self):
         result = revoke_refresh_token("nonexistent_hash")
         assert result is None
-
-    def test_delete_refresh_tokens_by_user_id(self):
-        user_id = ObjectId()
-        other_user_id = ObjectId()
-        expires_at = datetime.now(timezone.utc) + timedelta(days=30)
-
-        # Create multiple tokens for user_id
-        for i in range(3):
-            token = f"test_refresh_token_user_{i}"
-            token_hash = hash_token(token)
-            create_refresh_token(user_id, token_hash, 1, expires_at)
-
-        # Create token for another user
-        token_hash = hash_token("other_user_token")
-        create_refresh_token(other_user_id, token_hash, 1, expires_at)
-
-        # Delete tokens for user_id
-        deleted_count = delete_refresh_tokens_by_user_id(user_id)
-
-        assert deleted_count == 3
-
-        # Verify tokens are deleted
-        collection = get_refresh_tokens_collection()
-        remaining = list(collection.find({"user_id": user_id}))
-        assert len(remaining) == 0
-
-        # Verify other user's token still exists
-        other_tokens = list(collection.find({"user_id": other_user_id}))
-        assert len(other_tokens) == 1
-
-    def test_delete_refresh_tokens_by_user_id_none(self):
-        user_id = ObjectId()
-        deleted_count = delete_refresh_tokens_by_user_id(user_id)
-        assert deleted_count == 0
 
     def test_multiple_refresh_tokens_per_user(self):
         user_id = ObjectId()

@@ -89,8 +89,6 @@ def create_indexes():
         logger.info("Refresh tokens index ensured: token_hash (unique).")
         refresh_tokens_collection.create_index([("expires_at", 1)], expireAfterSeconds=0)
         logger.info("Refresh tokens index ensured: expires_at (TTL).")
-        refresh_tokens_collection.create_index([("user_id", 1), ("revoked", 1)])
-        logger.info("Refresh tokens index ensured: user_id + revoked.")
 
     except Exception as e:
         logger.warning(f"Index warning: {e}")

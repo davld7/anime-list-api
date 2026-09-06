@@ -48,11 +48,6 @@ class LoginRequest(BaseModel):
     password: str = Field(..., min_length=1, description="Password")
 
 
-class TokenResponse(BaseModel):
-    access_token: str = Field(..., description="JWT access token")
-    token_type: str = Field(default="bearer", description="Token type")
-
-
 class ChangeUsernameRequest(BaseModel):
     new_username: str = Field(..., min_length=1, description="New username", examples=["david2"])
 

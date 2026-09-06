@@ -53,11 +53,3 @@ def revoke_refresh_token(token_hash: str) -> dict[str, Any] | None:
         logger.info(f"Revoked refresh token with hash: {token_hash[:8]}...")
 
     return updated
-
-
-def delete_refresh_tokens_by_user_id(user_id: ObjectId) -> int:
-    collection = get_refresh_tokens_collection()
-    result = collection.delete_many({"user_id": user_id})
-    if result.deleted_count > 0:
-        logger.info(f"Deleted {result.deleted_count} refresh tokens for user_id: {user_id}")
-    return result.deleted_count
