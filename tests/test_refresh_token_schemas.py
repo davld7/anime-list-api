@@ -5,13 +5,15 @@ from app.core.config import Settings
 from app.schemas.auth import AuthTokenResponse, RefreshTokenRequest
 
 
-def test_refresh_token_expire_days_default_is_30():
-    assert Settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS == 30
+@pytest.mark.parametrize("days", [30, 45])
+def test_refresh_token_expire_days_reads_from_environment(monkeypatch, days):
+    """JWT_REFRESH_TOKEN_EXPIRE_DAYS is loaded from the environment.
 
-
-def test_refresh_token_expire_days_can_be_overridden(monkeypatch):
-    monkeypatch.setenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "45")
-    assert Settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS == 45
+    The value is set explicitly here so the test never depends on a
+    developer's .env file. The second case also exercises overriding it.
+    """
+    monkeypatch.setenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", str(days))
+    assert Settings().JWT_REFRESH_TOKEN_EXPIRE_DAYS == days
 
 
 def test_auth_token_response_fields():

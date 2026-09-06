@@ -1,12 +1,9 @@
-import os
 import sys
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 
 import pytest
 from bson import ObjectId
-
-os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
 
 from app.db.database import get_refresh_tokens_collection, init_database
 from app.repositories.refresh_token_repository import (

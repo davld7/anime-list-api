@@ -28,6 +28,11 @@ os.environ["DATABASE_NAME"] = TEST_DATABASE_NAME
 # Deterministic JWT secret for the test environment.
 os.environ.setdefault("JWT_SECRET_KEY", "test_secret_key_for_testing_only")
 
+# Deterministic JWT expiration values for the test environment. Hard-set so
+# the suite never depends on the values defined in a developer's .env.
+os.environ["JWT_ACCESS_TOKEN_EXPIRE_MINUTES"] = "15"
+os.environ["JWT_REFRESH_TOKEN_EXPIRE_DAYS"] = "30"
+
 # ---------------------------------------------------------------------------
 # SAFETY GUARD
 # ---------------------------------------------------------------------------

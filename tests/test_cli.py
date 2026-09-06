@@ -4,7 +4,6 @@ from unittest.mock import Mock
 import pytest
 
 os.environ["MONGO_URI"] = "mongodb://localhost:27017"
-os.environ["JWT_SECRET_KEY"] = "test-cli-secret-key-for-unit-tests"
 
 from app.cli import manage_admin
 

@@ -1,10 +1,5 @@
-import os
-
 import pytest
 from bson import ObjectId
-
-os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
-
 from fastapi.testclient import TestClient
 
 from app.core.security import get_password_hash, hash_refresh_token

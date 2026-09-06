@@ -1,11 +1,7 @@
-import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
 from bson import ObjectId
-
-os.environ["JWT_SECRET_KEY"] = "test_secret_key_for_testing_only"
-
 from fastapi.testclient import TestClient
 
 from app.core.security import (
