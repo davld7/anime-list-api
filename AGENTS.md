@@ -1,87 +1,87 @@
 # AGENTS.md — anime-list-api
 
-## Entorno y comandos
+## Environment and commands
 
-- **SO principal**: Windows (PowerShell/Warp).
+- **Primary OS**: Windows (PowerShell/Warp).
 - **Python**: 3.12 (`.python-version`).
-- **Gestor**: `uv` (existe `uv.lock`).
-- **Instalar/sincronizar**: `uv sync` (usa `uv sync --refresh` solo cuando sea necesario refrescar metadatos).
-- **Ejecutar servidor**: `uvicorn main:app --reload`
+- **Package manager**: `uv` (uses `uv.lock`).
+- **Install/sync**: `uv sync` (use `uv sync --refresh` only when a metadata refresh is needed).
+- **Run server**: `uvicorn main:app --reload`
 - **Tests**: `pytest`
 - **Lint/fix**: `ruff check --fix .`
-- **CLI de recuperación de admin**: `python -m app.cli.manage_admin <status|create|reset-password>`
-- **No usar**: `pip`, `venv` manual, `requirements.txt` como fuente de verdad (solo referencia legacy).
+- **Admin recovery CLI**: `python -m app.cli.manage_admin <status|create|reset-password>`
+- **Do not use**: `pip`, manual `venv`, or `requirements.txt` as source of truth (legacy reference only).
 
-## Seguridad y configuración (no negociables)
+## Security and configuration (non-negotiable)
 
-1. **Nunca commitear `.env`** — contiene `MONGO_URI`, `JWT_SECRET_KEY` de producción.
-2. **Tests solo contra `anime_list_test`** — `tests/conftest.py` fuerza `DATABASE_NAME=anime_list_test` y aborta si no coincide. No cambies esto.
-3. **`JWT_SECRET_KEY` en tests es determinístico** — `conftest.py` establece un secreto exclusivo para pruebas. No lo sobrescribas ni introduzcas secretos reales en los tests.
-4. **`auth_version` no se edita a mano** — se incrementa atómicamente en `update_user_by_id_atomic` para revocar tokens. Modificarlo rompe seguridad de sesiones.
-5. **No operaciones destructivas en producción** — tests, scripts o migraciones solo contra BD de test; producción requiere autorización explícita.
+1. **Never commit `.env`** — it contains production `MONGO_URI`, `JWT_SECRET_KEY`.
+2. **Tests only against `anime_list_test`** — `tests/conftest.py` forces `DATABASE_NAME=anime_list_test` and aborts if it doesn't match. Do not change this.
+3. **`JWT_SECRET_KEY` in tests is deterministic** — `conftest.py` sets a test-only secret. Do not override it or introduce real secrets in tests.
+4. **`auth_version` is not edited manually** — it is incremented atomically in `update_user_by_id_atomic` to revoke tokens. Modifying it breaks session security.
+5. **No destructive operations in production** — tests, scripts, or migrations only against the test DB; production requires explicit authorization.
 
-## Autenticación y permisos
+## Authentication and permissions
 
-- **Access tokens**: JWT HS256 (expiración configurable).
-- **Refresh tokens**: opacos, rotación atómica, revocación, TTL en MongoDB.
-- **`auth_version`**: parte del mecanismo de invalidación de sesiones. Usa `update_user_by_id_atomic` (incrementa atómicamente) en lugar de actualizar manualmente.
-- **Permisos válidos**: `read`, `write`, `admin` (definidos en `ALLOWED_PERMISSIONS` en `app/schemas/user.py`).
-- **No añadas permisos** sin actualizar validaciones en schemas y tests correspondientes.
+- **Access tokens**: JWT HS256 (configurable expiration).
+- **Refresh tokens**: opaque, atomic rotation, revocation, TTL in MongoDB.
+- **`auth_version`**: part of the session invalidation mechanism. Use `update_user_by_id_atomic` (increments atomically) instead of updating manually.
+- **Valid permissions**: `read`, `write`, `admin` (defined in `ALLOWED_PERMISSIONS` in `app/schemas/user.py`).
+- **Do not add permissions** without updating the corresponding schema validations and tests.
 
-## Arquitectura y convenciones
+## Architecture and conventions
 
 ```
 app/
-├── routers/        # Endpoints y dependencias
-├── repositories/   # Acceso a datos
-├── db/             # MongoDB e índices
-├── schemas/        # Modelos y validaciones Pydantic
-└── core/           # Configuración, seguridad y dependencias
+├── routers/        # Endpoints and dependencies
+├── repositories/   # Data access
+├── db/             # MongoDB and indexes
+├── schemas/        # Pydantic models and validations
+└── core/           # Configuration, security, and dependencies
 ```
 
-- **Routers** (`app/routers/`): endpoints, validación de entrada, dependencias de auth/permisos.
-- **Repositories** (`app/repositories/`): lógica de acceso a datos, operaciones atómicas.
-- **Database** (`app/db/`): conexión MongoDB, índices, health check, globals lazy-inited en lifespan.
-- **Schemas** (`app/schemas/`): Pydantic v2, `field_validator` para validaciones de negocio.
-- **Config** (`app/core/config.py`): `pydantic-settings`, carga `.env`, `extra="ignore"`.
-- **Rutas `/animes/`** usan `JSONRepairRoute` (permite newlines sin escapar en strings JSON). No elimines ni cambies `route_class` sin preservar esa funcionalidad.
+- **Routers** (`app/routers/`): endpoints, input validation, auth/permission dependencies.
+- **Repositories** (`app/repositories/`): data access logic, atomic operations.
+- **Database** (`app/db/`): MongoDB connection, indexes, health check, globals lazy-inited in lifespan.
+- **Schemas** (`app/schemas/`): Pydantic v2, `field_validator` for business validations.
+- **Config** (`app/core/config.py`): `pydantic-settings`, loads `.env`, `extra="ignore"`.
+- **`/animes/` routes** use `JSONRepairRoute` (allows unescaped newlines in JSON strings). Do not remove or change `route_class` without preserving that functionality.
 
 ## Tests
 
-- **Entiende el tipo** antes de modificar: unitarios (mocks) vs integración (MongoDB real `anime_list_test`).
-- **Respetan `anime_list_test`** — el guard en `conftest.py` aborta si `DATABASE_NAME` no es test.
-- **Limpieza quirúrgica** — evita `delete_many`/`update_many` amplios; limpia solo lo que el test crea.
-- **Ejecución tras cambios**:
-  - Auth/permisos: `pytest tests/test_auth_*.py`
+- **Understand the type** before modifying: unit tests (mocks) vs integration tests (real MongoDB `anime_list_test`).
+- **Respect `anime_list_test`** — the guard in `conftest.py` aborts if `DATABASE_NAME` is not the test DB.
+- **Surgical cleanup** — avoid broad `delete_many`/`update_many`; clean only what the test creates.
+- **Running after changes**:
+  - Auth/permissions: `pytest tests/test_auth_*.py`
   - Animes: `pytest tests/test_animes.py`
-  - Suite completa: `pytest`
-- **No ignores tests fallidos** — investiga la causa antes de seguir.
+  - Full suite: `pytest`
+- **Do not ignore failing tests** — investigate the cause before moving on.
 
-## Flujo de trabajo del agente
+## Agent workflow
 
-**Antes de modificar código**:
-1. Inspecciona el código relevante y entiende el contexto.
-2. Identifica dependencias y posibles efectos secundarios.
-3. Haz el cambio más pequeño que resuelva la tarea.
+**Before modifying code**:
+1. Inspect the relevant code and understand the context.
+2. Identify dependencies and possible side effects.
+3. Make the smallest change that solves the task.
 
-**Después de modificar código**:
-1. Ejecuta tests relevantes.
-2. Ejecuta `ruff check .`.
-3. Revisa `git diff` y `git status`.
-4. Verifica que no existan cambios no relacionados con la tarea.
-5. Antes de finalizar una tarea, verifica que `git diff` contenga únicamente cambios relacionados con la tarea.
+**After modifying code**:
+1. Run relevant tests.
+2. Run `ruff check .`.
+3. Review `git diff` and `git status`.
+4. Verify there are no changes unrelated to the task.
+5. Before finishing a task, verify that `git diff` contains only changes related to the task.
 
 ## Git
 
-- **Rama principal**: `master`.
-- **No commits automáticos** — deja cambios listos para revisión.
-- **No push automático** — espera autorización explícita.
-- **No descartes cambios** del usuario sin autorización.
-- **No operaciones destructivas** (reset, checkout, clean) sin autorización.
+- **Main branch**: `master`.
+- **No automatic commits** — leave changes ready for review.
+- **No automatic push** — wait for explicit authorization.
+- **Do not discard user changes** without authorization.
+- **No destructive operations** (reset, checkout, clean) without authorization.
 
-## Alcance y límites
+## Scope and limits
 
-- **Soluciones simples y mantenibles** — evita overengineering.
-- **No nuevas herramientas/dependencias/linters/type-checkers** salvo que la tarea lo requiera.
-- **No modifiques archivos no relacionados** con la tarea.
-- **Decisiones arquitectónicas importantes**: detente y presenta opciones antes de implementar.
+- **Simple, maintainable solutions** — avoid overengineering.
+- **No new tools/dependencies/linters/type-checkers** unless the task requires them.
+- **Do not modify files unrelated to the task**.
+- **Important architectural decisions**: stop and present options before implementing.

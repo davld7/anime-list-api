@@ -12,7 +12,7 @@ def convert_object_id(v):
 
 
 class UserBase(BaseModel):
-    username: str = Field(..., min_length=1, description="Username", examples=["david"])
+    username: str = Field(..., min_length=1, description="Username", examples=["username"])
     permissions: list[str] = Field(
         default_factory=list, description="User permissions", examples=[["read", "write", "admin"]]
     )
@@ -49,7 +49,12 @@ class LoginRequest(BaseModel):
 
 
 class ChangeUsernameRequest(BaseModel):
-    new_username: str = Field(..., min_length=1, description="New username", examples=["david2"])
+    new_username: str = Field(
+        ...,
+        min_length=1,
+        description="New username",
+        examples=["new_username"],
+    )
 
 
 class ChangeUsernameResponse(BaseModel):
