@@ -1,12 +1,12 @@
 # Anime List API
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.141.0-005571?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.141.1-005571?style=flat&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=flat&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
 [![JWT](https://img.shields.io/badge/JWT-HS256-000000?style=flat&logo=jsonwebtokens&logoColor=white)](https://jwt.io/)
-[![uv](https://img.shields.io/badge/uv-0.5.0-EBCE4B?style=flat&logo=uv&logoColor=black)](https://docs.astral.sh/uv/)
+[![uv](https://img.shields.io/badge/uv-EBCE4B?style=flat&logo=uv&logoColor=black)](https://docs.astral.sh/uv/)
 [![pytest](https://img.shields.io/badge/pytest-9.1.1-0A9EDC?style=flat&logo=pytest&logoColor=white)](https://docs.pytest.org/)
-[![Ruff](https://img.shields.io/badge/ruff-0.16.4-00599C?style=flat&logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
+[![Ruff](https://img.shields.io/badge/ruff-0.16.6-00599C?style=flat&logo=ruff&logoColor=white)](https://docs.astral.sh/ruff/)
 
 REST API modular para gestión de catálogos de anime, construida con FastAPI y MongoDB.
 
@@ -38,20 +38,25 @@ uvicorn main:app --reload
 ## Endpoints principales
 
 ### Auth (`/auth`)
-- `POST /login` — Login, devuelve access + refresh token
-- `POST /refresh` — Rotación de refresh token
-- `POST /logout` — Revoca refresh token
-- `GET /me` — Usuario autenticado
-- `PUT /username` — Cambiar username (incrementa auth_version)
-- `PUT /password` — Cambiar password (incrementa auth_version)
-- `GET /users` — Listar usuarios (admin)
-- `POST /users` — Crear usuario (admin)
-- `PUT /users/{id}/permissions` — Cambiar permisos (admin)
-- `PUT /users/{id}/password` — Reset password admin (admin)
-- `PUT /users/{id}/active` — Activar/desactivar usuario (admin)
-- `DELETE /users/{id}` — Eliminar usuario (admin)
+- `POST /auth/login` — Login, devuelve access + refresh token
+- `POST /auth/refresh` — Rotación de refresh token
+- `POST /auth/logout` — Revoca refresh token
+- `GET /auth/me` — Usuario autenticado
+- `PUT /auth/username` — Cambiar username
+- `PUT /auth/password` — Cambiar password
+- `GET /auth/users?page=1&active=true` — Listar usuarios (admin; `page` para paginar, `active` para filtrar)
+- `GET /auth/users/pages` — Total de páginas de usuarios (admin)
+- `GET /auth/users/{id}` — Obtener usuario por ID (admin)
+- `POST /auth/users` — Crear usuario (admin)
+- `PUT /auth/users/{id}/permissions` — Cambiar permisos (admin)
+- `PUT /auth/users/{id}/password` — Reset password admin (admin)
+- `PUT /auth/users/{id}/active` — Activar/desactivar usuario (admin)
+- `DELETE /auth/users/{id}` — Eliminar usuario (admin)
 
-### Animes (`/animes`) — requiere permiso `write` (crear/actualizar) o `admin` (eliminar)
+> Cambiar `username` o `password` invalida los tokens (access y refresh) existentes; vuelve a iniciar sesión con las nuevas credenciales.
+
+### Animes (`/animes`)
+Los `GET` son públicos (no requieren token). `POST` y `PUT` requieren permiso `write`; `DELETE` requiere `admin`.
 - `GET /` — Todos los animes
 - `GET /page` — Paginado
 - `GET /pages` — Total páginas
