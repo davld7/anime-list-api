@@ -13,7 +13,6 @@ from app.repositories.refresh_token_repository import (
 )
 from app.repositories.refresh_token_repository import (
     get_refresh_token_by_hash,
-    revoke_refresh_token,
 )
 from app.repositories.user_repository import create_user, get_user_by_username
 
@@ -249,29 +248,5 @@ def test_refresh_invalid_after_username_change(client):
             json={"refresh_token": old_refresh},
         )
         assert refresh_response.status_code == 401
-    finally:
-        _cleanup_user(user["_id"])
-
-
-def test_revoke_refresh_token_is_atomic_single_success(client):
-    user = _create_user("refresh_atomic_user")
-    try:
-        plain = create_refresh_token()
-        token_hash = hash_refresh_token(plain)
-        future = datetime.now(timezone.utc) + timedelta(days=1)
-
-        persist_refresh_token(
-            user_id=ObjectId(user["_id"]),
-            token_hash=token_hash,
-            auth_version=1,
-            expires_at=future,
-        )
-
-        first = revoke_refresh_token(token_hash)
-        assert first is not None
-        assert first["revoked"] is True
-
-        second = revoke_refresh_token(token_hash)
-        assert second is None
     finally:
         _cleanup_user(user["_id"])

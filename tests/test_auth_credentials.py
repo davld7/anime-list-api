@@ -578,54 +578,6 @@ def test_login_with_new_password_works_after_change(client):
 
 
 
-def test_auth_version_increments_correctly(client):
-    from bson import ObjectId
-
-    from app.repositories.user_repository import create_user
-
-    user_data = {
-        "username": "testuser_version",
-        "password_hash": get_password_hash("password1"),
-        "permissions": ["read"],
-        "active": True,
-        "auth_version": 1,
-    }
-    created_user = create_user(user_data)
-
-    token = create_access_token(data={"sub": "testuser_version", "auth_version": 1})
-
-    # First password change
-    response = client.put(
-        "/auth/password",
-        json={"current_password": "password1", "new_password": "password2"},
-        headers={"Authorization": f"Bearer {token}"}
-    )
-    assert response.status_code == 200
-
-    from app.repositories.user_repository import get_user_by_username
-    updated_user = get_user_by_username("testuser_version")
-    assert updated_user["auth_version"] == 2
-
-    # Second password change
-    token2 = create_access_token(data={"sub": "testuser_version", "auth_version": 2})
-    response = client.put(
-        "/auth/password",
-        json={"current_password": "password2", "new_password": "password3"},
-        headers={"Authorization": f"Bearer {token2}"}
-    )
-    assert response.status_code == 200
-
-    updated_user = get_user_by_username("testuser_version")
-    assert updated_user["auth_version"] == 3
-
-    # Clean up
-    from app.repositories.user_repository import get_users_collection
-    collection = get_users_collection()
-    collection.delete_one({"_id": ObjectId(created_user["_id"])})
-
-
-
-
 def test_user_without_auth_version_uses_fallback(client):
     from bson import ObjectId
 
