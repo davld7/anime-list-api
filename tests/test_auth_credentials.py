@@ -724,33 +724,4 @@ def test_multiple_password_changes_increment_auth_version(client):
 # UPDATE USER PERMISSIONS TESTS
 # =========================
 
-TARGET_USER_ID = "507f1f77bcf86cd799439044"
-
-
-def _admin_mock_headers():
-    token = create_access_token(data={"sub": "admin_user", "auth_version": 1})
-    return {"Authorization": f"Bearer {token}"}
-
-
-def _admin_mock_user(permissions=None):
-    return {
-        "_id": "507f1f77bcf86cd799439011",
-        "username": "admin_user",
-        "password_hash": get_password_hash("password"),
-        "permissions": permissions if permissions is not None else ["read", "write", "admin"],
-        "active": True,
-        "auth_version": 1,
-    }
-
-
-def _target_mock_user(active=True, permissions=("read",)):
-    return {
-        "_id": TARGET_USER_ID,
-        "username": "target_user",
-        "password_hash": get_password_hash("password"),
-        "permissions": list(permissions),
-        "active": active,
-        "auth_version": 1,
-    }
-
 

@@ -1,18 +1,9 @@
-import pytest
 from bson import ObjectId
-from fastapi.testclient import TestClient
 
 from app.core.security import get_password_hash, hash_refresh_token
 from app.db.database import get_refresh_tokens_collection, get_users_collection
 from app.repositories.refresh_token_repository import get_refresh_token_by_hash
 from app.repositories.user_repository import create_user, get_user_by_username
-from main import app
-
-
-@pytest.fixture(scope="module")
-def client():
-    with TestClient(app) as test_client:
-        yield test_client
 
 
 def _create_user(username, password="password123", active=True, auth_version=1):

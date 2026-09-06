@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-import pytest
 from bson import ObjectId
-from fastapi.testclient import TestClient
 
 from app.core.security import (
     create_refresh_token,
@@ -18,13 +16,6 @@ from app.repositories.refresh_token_repository import (
     revoke_refresh_token,
 )
 from app.repositories.user_repository import create_user, get_user_by_username
-from main import app
-
-
-@pytest.fixture(scope="module")
-def client():
-    with TestClient(app) as test_client:
-        yield test_client
 
 
 def _create_user(username, password="password123", active=True, auth_version=1):

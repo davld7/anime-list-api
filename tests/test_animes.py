@@ -1,17 +1,9 @@
 from unittest.mock import patch
 
 import pytest
-from fastapi.testclient import TestClient
 from pymongo.errors import DuplicateKeyError
 
 from app.core.security import create_access_token, get_password_hash
-from main import app
-
-
-@pytest.fixture(scope="module")
-def client():
-    with TestClient(app) as test_client:
-        yield test_client
 
 
 @pytest.fixture(scope="module")
