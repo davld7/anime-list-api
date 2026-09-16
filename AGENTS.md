@@ -9,6 +9,7 @@
 - **Run server**: `uvicorn main:app --reload`
 - **Tests**: `pytest`
 - **Lint/fix**: `ruff check --fix .`
+- **Type check**: `uv run pyright`
 - **Admin recovery CLI**: `python -m app.cli.manage_admin <status|create|reset-password>`
 - **Do not use**: `pip`, manual `venv`, or `requirements.txt` as source of truth (legacy reference only).
 
@@ -67,9 +68,10 @@ app/
 **After modifying code**:
 1. Run relevant tests.
 2. Run `ruff check .`.
-3. Review `git diff` and `git status`.
-4. Verify there are no changes unrelated to the task.
-5. Before finishing a task, verify that `git diff` contains only changes related to the task.
+3. Run `uv run pyright`.
+4. Review `git diff` and `git status`.
+5. Verify there are no changes unrelated to the task.
+6. Before finishing a task, verify that `git diff` contains only changes related to the task.
 
 ## Git
 
