@@ -75,7 +75,9 @@ app/
 
 ## Git
 
-- **Main branch**: `master`.
+- **Main branch**: `master` — stable, production-ready.
+- **Development branch**: `sandbox` — all new work is developed and validated here.
+- **Workflow**: develop on `sandbox`, then merge into `master` when ready.
 - **No automatic commits** — leave changes ready for review.
 - **No automatic push** — wait for explicit authorization.
 - **Do not discard user changes** without authorization.
